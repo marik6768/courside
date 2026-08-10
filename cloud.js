@@ -4,6 +4,18 @@ let CLOUD_DATA = null;
 const LOCAL_FALLBACK_KEY = 'courtsideDataV2';
 
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
+
+function normalizeContent(d){
+  const x=clone(d||{});
+  x.gi=x.gi||{};
+  if(x.gi.title==='Game Impact Index' || !x.gi.title) x.gi.title='GOAT Index';
+  if(!x.gi.text || x.gi.text.includes('влияние игрока через')) {
+    x.gi.text='GI — GOAT Index, наша единая шкала для сравнения силы игрока. Для сезона она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи.';
+  }
+  if(Array.isArray(x.goat)) x.goat=x.goat.map(p=>{ const q=[...p]; const v=Number(q[2]); if(Number.isFinite(v)&&v>100) q[2]=(v/10).toFixed(2); return q; });
+  return x;
+}
+
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 function isCloudConfigured(){
   const c=window.COURTSIDE_CONFIG||{};
@@ -28,10 +40,10 @@ async function getData(){
     if(sb){
       const {data,error}=await sb.from('site_content').select('payload').eq('id',1).maybeSingle();
       if(error) throw error;
-      if(data?.payload){ CLOUD_DATA=clone(data.payload); return CLOUD_DATA; }
+      if(data?.payload){ CLOUD_DATA=normalizeContent(data.payload); return CLOUD_DATA; }
     }
   }catch(e){ console.warn('Cloud read failed:',e.message); }
-  return localData();
+  return normalizeContent(localData());
 }
 async function saveCloud(payload){
   const sb=await ensureSupabase();
