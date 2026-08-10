@@ -1,0 +1,3 @@
+Mobile version included.
+On screens <= 900px the desktop navigation becomes a hamburger menu.
+All pages remain separate: Главная, Прогнозы, Статистика, GI, GOAT, Новости, Админ.
