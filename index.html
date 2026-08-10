@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COURTSIDE — NBA Analytics / GI</title>
+<style>
+:root{--bg:#08090b;--paper:#111214;--paper2:#17191c;--ink:#ece9e0;--muted:#8f8c84;--line:#303238;--red:#c5362f;--gold:#b99752}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.05;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.wrap{max-width:1260px;margin:auto;padding:0 30px}header{height:74px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;background:#08090bdd;backdrop-filter:blur(16px);position:sticky;top:0;z-index:9}.brand{font-family:Arial,sans-serif;font-weight:900;letter-spacing:2px}.brand span{color:var(--red)}nav{display:flex;gap:4px}nav button{font:14px Georgia;background:none;color:var(--muted);border:0;padding:10px 12px;cursor:pointer}nav button:hover{color:#fff}
+section{padding:68px 0;border-bottom:1px solid var(--line)}.kicker{font:700 10px Arial;letter-spacing:2.5px;color:var(--red);text-transform:uppercase}.title{font-size:clamp(45px,6vw,76px);line-height:.94;letter-spacing:-2px;margin:12px 0 20px}.lead{font-size:18px;line-height:1.65;color:#c0bdb4;max-width:790px}.rule{height:1px;background:var(--line);margin:25px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:22px}.card{background:linear-gradient(145deg,#15171a,#101113);border:1px solid var(--line);padding:22px;border-radius:4px}.card h2,.card h3{margin-top:0}.quote{border-left:3px solid var(--red);padding:8px 0 8px 18px;font-size:23px;line-height:1.4;font-style:italic;max-width:800px}.statrow{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:13px 0}.accent{color:var(--red)}.gold{color:var(--gold)}
+
+.chips{display:flex;gap:7px;flex-wrap:wrap}.chip{font:11px Arial;border:1px solid var(--line);padding:7px 9px;color:#aaa69d}.controls{display:flex;gap:9px;flex-wrap:wrap;margin:15px 0}.controls input,.controls select,.controls button{font-family:Georgia;background:#0d0f12;color:#eee;border:1px solid var(--line);padding:10px 12px}.controls button{cursor:pointer}.controls button:hover{border-color:var(--red)}
+table{width:100%;border-collapse:collapse;min-width:780px}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line)}th{font:10px Arial;color:#777;text-transform:uppercase;letter-spacing:1px}td{font-size:14px}.tablewrap{overflow:auto;border:1px solid var(--line)}.gi{color:#e45a50;font-weight:bold}
+.admin{display:grid;grid-template-columns:1fr 1fr;gap:15px}.admin label{font:11px Arial;color:#888;display:block;margin-bottom:6px}.admin input,.admin textarea,.admin select{width:100%;background:#0b0d10;color:#eee;border:1px solid var(--line);padding:11px;font-family:Georgia}.admin textarea{min-height:90px;resize:vertical}.save{grid-column:1/-1;background:var(--red);border:0;color:#fff;padding:13px;font-weight:bold;cursor:pointer}.saved{color:#6bd49b;font:12px Arial;display:none}.forecastItem{display:grid;grid-template-columns:1fr 90px;gap:10px;align-items:center;padding:15px 0;border-bottom:1px solid var(--line)}.forecastItem b{color:#ddd}.forecastBar{height:6px;background:#282a2e;margin-top:7px}.forecastBar i{display:block;height:100%;background:var(--red)}
+footer{padding:35px 0;color:#77736b;font:11px Arial}
+@media(max-width:800px){nav{display:none}.wrap{padding:0 18px}.grid,.admin{grid-template-columns:1fr}.title{font-size:50px}.heroimg{height:270px}.collage{grid-template-columns:1fr}.collage .tall{height:280px}}
+</style>
+</head>
+<body>
+<header><div class="wrap" style="width:100%;display:flex;align-items:center;justify-content:space-between"><div class="brand">COURT<span>SIDE</span> / GI</div><nav>
+<button onclick="go('home')">Главная</button><button onclick="go('gi')">GI</button><button onclick="go('goat')">GOAT</button><button onclick="go('season')">Top 100</button><button onclick="go('forecast')">Прогнозы</button><button onclick="go('admin')">Редактор</button>
+</nav></div></header>
+
+<main class="wrap">
+<section id="home">
+<div class="grid">
+<div><div class="kicker">NBA ANALYTICS · THE BOOK</div><h1 class="title">Баскетбол,<br><span class="accent">разложенный</span><br>по цифрам.</h1><p class="lead">COURTSIDE соединяет статистический портал и визуальный язык баскетбольной книги: аналитика, GI, прогнозы, рейтинги и обсуждение лиги.</p><div class="quote">Не просто спрашиваем, кто лучше. Пытаемся понять, почему.</div></div>
+
+</div>
+</section>
+
+<section id="gi">
+<div class="kicker">Chapter 01 · GI</div><h2 class="title" style="font-size:48px">GOAT Index</h2>
+<div class="grid"><div><p class="lead" style="font-size:16px">GI оценивает влияние игрока на победы, качество пика, атакующий и защитный вклад, плей-офф и переносимость навыков между контекстами.</p><div class="card"><h3>Как считается</h3><div class="statrow"><span>Career Game Impact</span><b>30%</b></div><div class="statrow"><span>Peak Impact</span><b>25%</b></div><div class="statrow"><span>Two-way / Functional value</span><b>15%</b></div><div class="statrow"><span>Playoff Translation</span><b>20%</b></div><div class="statrow"><span>Context & portability</span><b>10%</b></div><p style="color:#777;font-size:12px">Это версия модели COURTSIDE, а не официальная метрика NBA. Источником базовых advanced-данных может служить официальный NBA Stats, где доступны NetRtg, AST%, REB%, eFG%, TS%, USG% и PIE. citeturn0search1turn0search10</p></div></div>
+<div class="card"><div class="kicker">Current leader</div><h3 style="font-size:38px;margin:8px 0">Nikola Jokić</h3><div style="font-size:42px;color:var(--red);font-weight:bold">971.9</div><p class="lead" style="font-size:14px">Демонстрационное значение GI. В реальной версии оно будет пересчитываться из полного датасета.</p><div class="chips"><span class="chip">OFFENSE</span><span class="chip">CREATION</span><span class="chip">EFFICIENCY</span><span class="chip">PLAYOFF</span></div></div></div>
+</section>
+
+<section id="goat">
+<div class="kicker">Chapter 02 · The Pantheon</div><h2 class="title" style="font-size:48px">Top GI · All-Time</h2>
+<div class="grid"><div class="card"><h3>GOAT Index</h3><div id="goat"></div></div>
+</div>
+</section>
+
+<section id="season">
+<div class="kicker">Chapter 03 · Current Season</div><h2 class="title" style="font-size:48px">Top 100 GI</h2><p class="lead" style="font-size:15px">Рейтинг текущего сезона. GI сортирует игроков по модели влияния, а не просто по очкам. Ниже демонстрационные значения, готовые к замене реальными данными.</p>
+<div class="controls"><input id="search" placeholder="Игрок..."><select id="pos"><option value="all">Все позиции</option><option>G</option><option>F</option><option>C</option></select></div>
+<div class="tablewrap"><table><thead><tr><th>#</th><th>Игрок</th><th>Pos</th><th>PTS</th><th>REB</th><th>AST</th><th>TS%</th><th>GI</th></tr></thead><tbody id="players"></tbody></table></div>
+</section>
+
+<section id="forecast">
+<div class="kicker">Chapter 04 · Model Room</div><h2 class="title" style="font-size:48px">Прогнозы 2026–27</h2>
+<div class="grid"><div class="card"><h3>Претенденты на титул</h3><div id="forecastList"></div></div><div class="card"><h3>Награды</h3><div id="awardList"></div></div></div>
+</section>
+
+<section id="admin">
+<div class="kicker">Appendix · Editor</div><h2 class="title" style="font-size:48px">Редактор прогнозов</h2>
+<p class="lead" style="font-size:15px">Теперь прогнозы можно менять прямо на странице. Изменения сохраняются в <b>localStorage</b> этого браузера, поэтому для настоящего многопользовательского сайта позже нужен backend.</p>
+<div class="card"><div class="admin">
+<div><label>Команда</label><input id="teamName"></div><div><label>Вероятность, %</label><input id="teamProb" type="number" min="0" max="100"></div>
+<div><label>MVP</label><input id="mvp"></div><div><label>DPOY</label><input id="dpoy"></div>
+<div><label>Прорыв сезона</label><input id="breakout"></div><div><label>Главный прогноз</label><input id="mainForecast"></div>
+<div><label>Текст аналитика</label><textarea id="editorText"></textarea></div><div><label>Версия модели</label><input id="version" value="GI v1.0"></div>
+<button class="save" onclick="saveSettings()">Сохранить прогнозы</button><div class="saved" id="saved">✓ Изменения сохранены</div>
+</div></div>
+</section>
+</main><footer><div class="wrap">COURTSIDE / GI · Dark Book Edition · Демонстрационный аналитический проект.</div></footer>
+
+<script>
+const players=[
+["Nikola Jokić","C",27.2,12.8,10.1,66.1,98.2],["Shai Gilgeous-Alexander","G",31.0,5.2,6.7,62.8,96.9],["Luka Dončić","G",32.8,8.6,8.7,61.9,95.8],["Victor Wembanyama","C",25.9,11.8,4.2,61.0,95.5],["Giannis Antetokounmpo","F",29.3,11.6,6.5,64.2,94.9],["Jayson Tatum","F",27.0,8.8,5.9,60.7,92.8],["Anthony Edwards","G",27.6,5.4,5.1,58.7,91.9],["Cade Cunningham","G",25.5,6.0,9.1,57.8,90.7],["Jalen Brunson","G",26.8,3.2,7.5,58.9,90.4],["Kevin Durant","F",26.0,6.3,4.7,64.4,89.9],["Donovan Mitchell","G",27.4,5.0,5.7,60.1,89.5],["Chet Holmgren","C",20.1,9.0,3.0,63.8,88.9],["Jalen Williams","F",23.8,5.9,5.4,61.0,88.4],["Alperen Şengün","C",20.7,10.2,5.0,60.0,87.9],["Karl-Anthony Towns","C",22.5,11.7,3.2,65.1,87.3],["Paolo Banchero","F",24.0,8.0,5.0,57.6,86.8],["Tyrese Haliburton","G",18.0,3.8,10.4,60.0,86.1],["De'Aaron Fox","G",24.4,4.1,6.7,58.0,85.7],["Bam Adebayo","C",22.9,9.7,4.5,61.7,85.2],["Stephen Curry","G",26.1,4.4,6.0,63.2,84.9],["Evan Mobley","C",18.3,9.6,3.7,62.6,84.4],["Franz Wagner","F",23.5,5.8,4.7,59.9,83.9],["Scottie Barnes","F",19.7,7.7,6.3,56.5,83.4],["Jaylen Brown","F",28.1,6.5,4.8,59.1,82.9],["LeBron James","F",23.5,6.7,7.8,61.0,82.5]];
+const goat=[["Michael Jordan","984.7"],["LeBron James","979.8"],["Nikola Jokić","971.9"],["Kareem Abdul-Jabbar","967.4"],["Bill Russell","963.8"],["Tim Duncan","958.6"],["Magic Johnson","955.2"],["Larry Bird","953.9"],["Stephen Curry","949.7"],["Shaquille O'Neal","947.8"]];
+document.getElementById("goat").innerHTML=goat.map((x,i)=>`<div class="statrow"><span><b>${String(i+1).padStart(2,"0")}</b> &nbsp; ${x[0]}</span><b class="gi">${x[1]}</b></div>`).join("");
+
+function renderPlayers(){let q=document.getElementById("search").value.toLowerCase(),p=document.getElementById("pos").value,a=players.filter(x=>x[0].toLowerCase().includes(q)&&(p==="all"||x[1]===p));document.getElementById("players").innerHTML=a.map((x,i)=>`<tr><td>${i+1}</td><td><b>${x[0]}</b></td><td>${x[1]}</td><td>${x[2]}</td><td>${x[3]}</td><td>${x[4]}</td><td>${x[5]}%</td><td class="gi">${x[6]}</td></tr>`).join("")}
+const defaults={teams:[["New York Knicks",86],["Oklahoma City Thunder",84],["San Antonio Spurs",82],["Denver Nuggets",80],["Minnesota Timberwolves",78]],mvp:"Nikola Jokić",dpoy:"Victor Wembanyama",breakout:"Stephon Castle",mainForecast:"Knicks — чемпион Востока",text:"Модель учитывает силу состава, создание бросков, эффективность и устойчивость в плей-офф.",version:"GI v1.0"};
+function settings(){try{return JSON.parse(localStorage.getItem("courtSideSettings"))||defaults}catch(e){return defaults}}
+function renderForecast(){let s=settings();document.getElementById("forecastList").innerHTML=s.teams.map((x,i)=>`<div class="forecastItem"><div><b>${i+1}. ${x[0]}</b><div class="forecastBar"><i style="width:${x[1]}%"></i></div></div><b>${x[1]}%</b></div>`).join("");document.getElementById("awardList").innerHTML=`<div class="statrow"><span>MVP</span><b>${s.mvp}</b></div><div class="statrow"><span>DPOY</span><b>${s.dpoy}</b></div><div class="statrow"><span>Breakout</span><b>${s.breakout}</b></div><p class="lead" style="font-size:14px">${s.text}</p>`}
+function loadEditor(){let s=settings();document.getElementById("teamName").value=s.teams[0][0];document.getElementById("teamProb").value=s.teams[0][1];document.getElementById("mvp").value=s.mvp;document.getElementById("dpoy").value=s.dpoy;document.getElementById("breakout").value=s.breakout;document.getElementById("mainForecast").value=s.mainForecast;document.getElementById("editorText").value=s.text;document.getElementById("version").value=s.version}
+function saveSettings(){let s=settings();s.teams[0]=[document.getElementById("teamName").value||"Команда",Number(document.getElementById("teamProb").value)||0];s.mvp=document.getElementById("mvp").value;s.dpoy=document.getElementById("dpoy").value;s.breakout=document.getElementById("breakout").value;s.mainForecast=document.getElementById("mainForecast").value;s.text=document.getElementById("editorText").value;s.version=document.getElementById("version").value;localStorage.setItem("courtSideSettings",JSON.stringify(s));renderForecast();document.getElementById("saved").style.display="block";setTimeout(()=>document.getElementById("saved").style.display="none",1800)}
+function go(id){document.getElementById(id).scrollIntoView({behavior:"smooth"})}
+document.getElementById("search").oninput=renderPlayers;document.getElementById("pos").onchange=renderPlayers;renderPlayers();renderForecast();loadEditor();
+</script>
+</body></html>
