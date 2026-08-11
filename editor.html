@@ -16,7 +16,7 @@
 <div id="loginPanel" class="login"><div class="eyebrow">08 · PRIVATE</div><h2>Admin Desk</h2><p class="muted">Здесь меняется публичный контент COURTSIDE. Данные сохраняются в общей базе.</p><form id="loginForm"><div class="field"><label>Email</label><input id="loginEmail" type="email" required autocomplete="username"></div><div class="field"><label>Пароль</label><input id="loginPassword" type="password" required autocomplete="current-password"></div><button class="btn" type="submit">Войти</button></form><div id="msg" class="msg"></div></div>
 <div id="dashboard" style="display:none">
 <div class="userbar"><div><span class="status-dot"></span><small>Администратор: </small><b id="userLine"></b></div><button class="btn secondary" id="logout">Выйти</button></div>
-<div class="eyebrow">Chapter 09 · Editorial Desk</div><h1 class="section-title">Редакция COURTSIDE.</h1>
+<div class="eyebrow">Chapter 08 · Editorial Desk</div><h1 class="section-title">Редакция COURTSIDE.</h1>
 <div class="notice">Изменения сохраняются в Supabase. После сохранения их видят все посетители сайта. Не загружай сюда секретные ключи и не делись паролем администратора.</div>
 <div id="adminMsg" class="msg"></div>
 <div class="admin-actions"><button class="btn" id="saveAll">Сохранить всё</button></div>
@@ -38,21 +38,14 @@
 
 <section class="admin-section"><div class="eyebrow">04 · Newsroom</div><h2 class="section-title">Новости</h2><div id="newsEditor"></div><p class="stat-note">Для изображения новости можно указать URL. Для загрузки файла используй блок Photography ниже.</p><input id="addNewsImage" type="file" accept="image/*" hidden><label for="addNewsImage" class="btn secondary">Загрузить фото для новости</label><input id="newNewsImageUrl" style="width:100%;margin-top:10px;background:#0d1013;color:#eee;border:1px solid #293138;padding:10px" placeholder="URL загруженного фото появится здесь"></section>
 
-<section class="admin-section"><div class="eyebrow">05 · Media Library</div><h2 class="section-title">Медиатека COURTSIDE.</h2><p class="muted">Теперь нет лимита в четыре фотографии. Загружай сколько угодно изображений, назначай их обложками, добавляй в галерею и удаляй прямо отсюда. Файлы хранятся в Supabase Storage.</p>
-<div class="media-upload-bar"><label for="mediaUpload" class="btn">+ Загрузить фотографии</label><input id="mediaUpload" type="file" accept="image/*" multiple hidden><button id="mediaRefresh" class="btn secondary" type="button">Обновить</button></div>
-<div id="mediaLibraryGrid" class="media-library-grid"></div>
-<div class="photo-admin media-slots">
+<section class="admin-section"><div class="eyebrow">05 · Photography</div><h2 class="section-title">Фотографии</h2><p class="muted">Выбираешь файл → он загружается в облачное хранилище → URL записывается в общую базу. После этого фотографию видят все.</p><div class="photo-admin">
 <div class="photo-box"><img id="prev_hero" src="nba-1.jpg"><label>Главная</label><input id="img_hero" class="file" type="file" accept="image/*"></div>
 <div class="photo-box"><img id="prev_gi" src="nba-2.jpg"><label>GI</label><input id="img_gi" class="file" type="file" accept="image/*"></div>
 <div class="photo-box"><img id="prev_goat" src="nba-3.jpg"><label>GOAT</label><input id="img_goat" class="file" type="file" accept="image/*"></div>
 <div class="photo-box"><img id="prev_stats" src="nba-4.jpg"><label>Статистика</label><input id="img_stats" class="file" type="file" accept="image/*"></div>
 </div></section>
 
-<section class="admin-section"><div class="eyebrow">06 · Page Studio</div><h2 class="section-title">Собери главную сам.</h2><p class="muted">Меняй порядок блоков, скрывай их, редактируй заголовки и тексты, добавляй свои текстовые или фото-блоки. Для фотографий используй URL из Media Library.</p><div id="pageStudio"></div></section>
-
-<section class="admin-section cms-admin-section"><div class="eyebrow">07 · Universal CMS</div><h2 class="section-title">Page Studio · весь сайт.</h2><p class="muted">Теперь можно добавлять собственные блоки не только на главную. Выбери страницу, перетащи блоки мышью, измени текст, ссылку или фото, посмотри предпросмотр и опубликуй. Основные данные сайта ниже остаются полностью редактируемыми.</p><div id="universalStudio"></div></section>
-
-<section class="admin-section"><div class="eyebrow">08 · Setup</div><h2 class="section-title">Если нужно перенести сайт.</h2><p class="muted">Все данные находятся в Supabase, поэтому замена HTML-файлов на GitHub не удаляет контент. Главное не менять проект Supabase без необходимости.</p></section>
+<section class="admin-section"><div class="eyebrow">06 · Setup</div><h2 class="section-title">Если нужно перенести сайт.</h2><p class="muted">Все данные находятся в Supabase, поэтому замена HTML-файлов на GitHub не удаляет контент. Главное не менять проект Supabase без необходимости.</p></section>
 </div></div></main><footer class="footer"><div class="wrap footer-inner">
   <span>COURTSIDE · NBA ANALYTICS</span><span>GOAT Index · прогнозы · статистика · история</span>
 </div></footer><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="data.js"></script><script src="cloud.js"></script><script src="mobile.js"></script><script>startPage('editor')</script></body></html>
