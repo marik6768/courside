@@ -16,8 +16,15 @@ function normalizeContent(d){
     return extra===undefined?base:extra;
   };
   const baseData=(typeof DEFAULT_DATA!=='undefined'?DEFAULT_DATA:{});
-  const x=merge(clone(baseData),clone(d||{}));
+  const DATA_VERSION='2026-08-12-final-stats-v1';
+  const incoming=d||{};
+  const needsFinalStats=incoming.contentVersion!==DATA_VERSION;
+  const x=merge(clone(baseData),clone(incoming));
+  x.contentVersion=DATA_VERSION;
   x.site=x.site||{}; x.forecast=x.forecast||{}; x.forecast.arguments=Array.isArray(x.forecast.arguments)?x.forecast.arguments:[]; x.gi=x.gi||{}; x.players=Array.isArray(x.players)?x.players:[]; x.goat=Array.isArray(x.goat)?x.goat:[]; x.news=Array.isArray(x.news)?x.news:[];
+  x.currentGI=Array.isArray(x.currentGI)?x.currentGI:[];
+  if(needsFinalStats){ x.currentGI=clone(baseData.currentGI||[]); x.goat=clone(baseData.goat||[]); }
+  if(!x.currentGI.length && Array.isArray(baseData.currentGI)) x.currentGI=clone(baseData.currentGI);
   // Never let an incomplete/empty cloud payload erase the working built-in content.
   const defaults=clone(baseData);
   if(!x.players.length && Array.isArray(defaults.players)) x.players=clone(defaults.players);
@@ -49,7 +56,7 @@ function normalizeContent(d){
   x.pages.forum={eyebrow:'07 · DISCUSSION',title:'Форум.',intro:'Обсуждаем матчи, рейтинги, прогнозы и спорные решения.',topics:[{title:'Кто должен быть №1 по GI?',tag:'GI',text:'Сравните лидеров текущего рейтинга и объясните, что для вас важнее: производство, эффективность или влияние.',replies:12},{title:'Главный вопрос сезона 2025–26',tag:'SEASON',text:'Какая команда или игрок сильнее всего изменили ваши ожидания?',replies:8},{title:'GOAT: пик против карьеры',tag:'HISTORY',text:'Должен ли исторический рейтинг сильнее учитывать пик игрока?',replies:21}],...x.pages.forum};
   if(x.gi.title==='Game Impact Index' || !x.gi.title) x.gi.title='GOAT Index';
   if(!x.gi.text || x.gi.text.includes('влияние игрока через')) x.gi.text='GI — GOAT Index, наша единая шкала для сравнения силы игрока. Для сезона она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи. GI не является официальной наградой NBA.';
-  if(Array.isArray(x.goat)) x.goat=x.goat.map(p=>{ const q=[...p]; const v=Number(q[2]); if(Number.isFinite(v)&&v>100) q[2]=(v/10).toFixed(2); return q; });
+  if(Array.isArray(x.goat)) x.goat=x.goat.map(p=>[p[0],Number(p[1])||0,Number(p[2])||0,Number(p[3])||0,Number(p[4])||0,Number(p[5])||0]);
   return x;
 }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
@@ -67,7 +74,7 @@ async function ensureSupabase(){
   return SB;
 }
 function localData(){
-  try { const s=JSON.parse(localStorage.getItem(LOCAL_FALLBACK_KEY)||'null'); return s?Object.assign(clone(DEFAULT_DATA),s):clone(DEFAULT_DATA); }
+  try { const s=JSON.parse(localStorage.getItem(LOCAL_FALLBACK_KEY)||'null'); return s||clone(DEFAULT_DATA); }
   catch { return clone(DEFAULT_DATA); }
 }
 async function getData(){
@@ -170,6 +177,13 @@ function renderStatsTable(arr){
   </tr>`).join('');
 }
 
+function renderCurrentGITable(arr){
+  return arr.map((p,i)=>`<tr><td class="rank-cell">${i+1}</td><td><div class="player-cell"><b>${esc(p[0])}</b></div></td><td>${esc(p[1])}</td><td class="gi-cell">${Number(p[2]).toFixed(1)}</td></tr>`).join('');
+}
+function renderGoatRows(arr){
+  return arr.map((p,i)=>`<div class="rank-row"><span class="rank">${String(i+1).padStart(2,'0')}</span><div><b>${esc(p[0])}</b><small>Peak ${Number(p[2]).toFixed(1)} · Off ${Number(p[3]).toFixed(1)} · Def ${Number(p[4]).toFixed(1)} · Conf ${Number(p[5]).toFixed(1)}%</small></div><strong>${Number(p[1]).toFixed(1)}</strong></div>`).join('');
+}
+
 
 function defaultHomeBlocks(){return [
   {id:'hero',type:'hero',visible:true,eyebrow:'01 · COURTSIDE',title:'{{headline}}',text:'{{intro}}',quote:'Смотреть на игру целиком. Не только на строку с очками.',image:'hero'},
@@ -236,7 +250,8 @@ async function initStats(){
 }
 async function initGI(){
   const d=await getData(), pg=d.pages?.gi||{}, body=document.querySelector('#giBody');
-  if(body) body.innerHTML=renderStatsTable(d.players.slice().sort((a,b)=>b[7]-a[7]));
+  const current=Array.isArray(d.currentGI)&&d.currentGI.length?d.currentGI:(DEFAULT_DATA?.currentGI||[]);
+  if(body) body.innerHTML=renderCurrentGITable(current);
   const ey=document.querySelector('#giEyebrow'), t=document.querySelector('#giText'), title=document.querySelector('#giTitle'), intro=document.querySelector('#giMethodText'), method=document.querySelector('#giMethodTitle'), im=document.querySelector('#giImage');
   if(ey)ey.textContent=pg.eyebrow||'04 · GOAT INDEX'; if(t)t.textContent=pg.intro||d.gi.text; if(title)title.textContent=pg.title||d.gi.title; if(method)method.textContent=pg.methodTitle||'Что такое GI'; if(intro)intro.textContent=pg.methodText||d.gi.text; if(im)im.src=d.photos.gi||'nba-2.jpg';
   nav('gi');
@@ -246,7 +261,7 @@ async function initGoat(){
   const ey=document.querySelector('#goatEyebrow'), title=document.querySelector('#goatTitle'), intro=document.querySelector('#goatIntro');
   if(ey)ey.textContent=pg.eyebrow||'05 · ALL-TIME'; if(title)title.textContent=pg.title||'GOAT по GI.'; if(intro)intro.textContent=pg.intro||'';
   const goatRows=Array.isArray(d.goat)&&d.goat.length?d.goat:(DEFAULT_DATA?.goat||[]);
-  if(el)el.innerHTML=goatRows.map((p,i)=>`<div class="rank-row"><span class="rank">${String(i+1).padStart(2,'0')}</span><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div><strong>${esc(p[2])}</strong></div>`).join('');
+  if(el)el.innerHTML=renderGoatRows(goatRows);
   const im=document.querySelector('#goatImage');if(im)im.src=d.photos.goat||'nba-3.jpg'; nav('goat');
 }
 async function initNews(){
@@ -322,11 +337,12 @@ function collectPlayers(){
 }
 function renderGoatEditor(goat){
   const el=document.querySelector('#goatEditor');if(!el)return;
-  el.innerHTML=`<div class="editor-list">${goat.map((p,i)=>`<div class="edit-row" data-i="${i}"><span class="drag-rank">${i+1}</span>${rowInput(p[0])}${rowInput(p[1])}${rowInput(p[2])}<button class="danger mini del-goat">Удалить</button></div>`).join('')}</div><button class="btn secondary" id="addGoat">+ Добавить</button>`;
+  const val=(p,i)=>Number(p[i]??0);
+  el.innerHTML=`<div class="editor-list">${goat.map((p,i)=>`<div class="edit-row goat-edit-row" data-i="${i}"><span class="drag-rank">${i+1}</span>${rowInput(p[0])}${rowInput(val(p,1))}${rowInput(val(p,2))}${rowInput(val(p,3))}${rowInput(val(p,4))}${rowInput(val(p,5))}<button class="danger mini del-goat">Удалить</button></div>`).join('')}</div><button class="btn secondary" id="addGoat">+ Добавить</button>`;
   el.querySelectorAll('.del-goat').forEach(b=>b.onclick=()=>b.closest('.edit-row').remove());
-  el.querySelector('#addGoat').onclick=()=>{const r=document.createElement('div');r.className='edit-row';r.innerHTML=`<span class="drag-rank">+</span>${rowInput('Player')}${rowInput('TEAM')}${rowInput(0)}<button class="danger mini del-goat">Удалить</button>`;el.querySelector('.editor-list').appendChild(r);r.querySelector('.del-goat').onclick=()=>r.remove();};
+  el.querySelector('#addGoat').onclick=()=>{const r=document.createElement('div');r.className='edit-row goat-edit-row';r.innerHTML=`<span class="drag-rank">+</span>${rowInput('Player')}${rowInput(0)}${rowInput(0)}${rowInput(0)}${rowInput(0)}${rowInput(0)}<button class="danger mini del-goat">Удалить</button>`;el.querySelector('.editor-list').appendChild(r);r.querySelector('.del-goat').onclick=()=>r.remove();};
 }
-function collectGoat(){return [...document.querySelectorAll('#goatEditor .edit-row')].map(r=>{const v=[...r.querySelectorAll('input')].map(x=>x.value.trim());return [v[0],v[1],v[2]];});}
+function collectGoat(){return [...document.querySelectorAll('#goatEditor .edit-row')].map(r=>{const v=[...r.querySelectorAll('input')].map(x=>x.value.trim());return [v[0],Number(v[1])||0,Number(v[2])||0,Number(v[3])||0,Number(v[4])||0,Number(v[5])||0];});}
 function renderNewsEditor(news){
   const el=document.querySelector('#newsEditor');if(!el)return;
   el.innerHTML=news.map((n,i)=>`<div class="news-edit" data-i="${i}"><div class="news-edit-head"><b>Новость ${i+1}</b><button class="danger mini del-news">Удалить</button></div><div class="edit-grid"><div class="field"><label>Заголовок</label><input class="n-title" value="${esc(n.title)}"></div><div class="field"><label>Категория</label><input class="n-tag" value="${esc(n.tag)}"></div><div class="field" style="grid-column:1/-1"><label>Текст</label><textarea class="n-text">${esc(n.text)}</textarea></div><div class="field"><label>URL фотографии</label><input class="n-image" value="${esc(n.image||'')}"></div><div class="field"><label>Загрузить фото</label><input class="n-file" type="file" accept="image/*"></div></div></div>`).join('')+`<button class="btn secondary" id="addNews">+ Добавить новость</button>`;
