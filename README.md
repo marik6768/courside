@@ -1,12 +1,24 @@
 # COURTSIDE
 
-Dark NBA analytics / GI project.
+NBA analytics site with GOAT Index, forecasts, player statistics, comparison, insights, newsroom and Supabase-powered editorial CMS.
 
-## GitHub Pages
-The site is a static HTML project. Upload `index.html` to the repository root and enable:
-Settings → Pages → Deploy from a branch → `main` → `/ (root)`.
+## Deploy
 
-The current editor stores prediction settings in browser localStorage. A backend/database can be added later so changes are shared across visitors.
+Upload the contents of this folder to the root of the GitHub Pages repository.
 
-## Note
-GI values in the prototype are model/demo values, not an official NBA ranking.
+## Supabase
+
+`config.js` contains only the public/publishable Supabase key. The database schema and admin account are already configured in the existing project.
+
+## Admin
+
+Open `editor.html`, sign in with the admin account, then use:
+
+- Site: text and forecasts
+- Player Lab: player statistics / GI
+- Historical: GOAT Index
+- Newsroom: news and images
+- Media Library: unlimited image uploads
+- Page Studio: drag-and-drop blocks for every page
+
+Workflow: edit -> Preview -> Publish.
