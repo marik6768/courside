@@ -6,16 +6,31 @@ const LOCAL_FALLBACK_KEY = 'courtsideDataV2';
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
 
 function normalizeContent(d){
-  const x=clone(d||{});
-  x.gi=x.gi||{};
+  const merge=(base,extra)=>{
+    if(Array.isArray(base)) return Array.isArray(extra)?extra:base;
+    if(base && typeof base==='object'){
+      const out={...base};
+      if(extra && typeof extra==='object') for(const k of Object.keys(extra)) out[k]=k in out?merge(out[k],extra[k]):extra[k];
+      return out;
+    }
+    return extra===undefined?base:extra;
+  };
+  const baseData=(typeof DEFAULT_DATA!=='undefined'?DEFAULT_DATA:{});
+  const x=merge(clone(baseData),clone(d||{}));
+  x.site=x.site||{}; x.forecast=x.forecast||{}; x.gi=x.gi||{}; x.players=Array.isArray(x.players)?x.players:[]; x.goat=Array.isArray(x.goat)?x.goat:[]; x.news=Array.isArray(x.news)?x.news:[];
+  x.photos=x.photos||{}; x.gallery=Array.isArray(x.gallery)?x.gallery:[]; x.media=Array.isArray(x.media)?x.media:[];
+  x.pages=x.pages||{};
+  x.pages.gi={eyebrow:'04 · GOAT INDEX',title:x.gi.title||'GOAT Index',intro:x.gi.text||'',methodTitle:'Что такое GI',methodText:'GI — GOAT Index. Это внутренняя шкала COURTSIDE для сравнения силы игрока. Она не заменяет PTS, REB, AST или TS%.',...x.pages.gi};
+  x.pages.goat={eyebrow:'05 · ALL-TIME',title:'GOAT по GI.',intro:'Исторический GOAT Index оценивает карьеру, пик, стабильность, победы и контекст эпохи. Это рейтинг COURTSIDE, а не официальная награда NBA.',...x.pages.goat};
+  x.pages.stats={eyebrow:'06 · PLAYER LAB',title:'Top 100 GI · 2025–26',intro:'Сезонный рейтинг игроков по основным показателям и GOAT Index.',...x.pages.stats};
+  x.pages.compare={eyebrow:'09 · PLAYER MATCHUP',title:'Два игрока. Один GI.',intro:'Сравнение по GOAT Index и основным показателям сезона.',...x.pages.compare};
+  x.pages.insights={eyebrow:'10 · INSIGHTS',title:'Где цифры расходятся.',intro:'Смотрим, где объём производства и общий GI рассказывают разные истории.',noteTitle:'Не путай объём с влиянием.',noteText:'Insights ищет интересные расхождения внутри текущего набора данных. Это инструмент для поиска вопросов, а не готовый ответ.',...x.pages.insights};
+  x.pages.forum={eyebrow:'07 · DISCUSSION',title:'Форум.',intro:'Обсуждаем матчи, рейтинги, прогнозы и спорные решения.',topics:[{title:'Кто должен быть №1 по GI?',tag:'GI',text:'Сравните лидеров текущего рейтинга и объясните, что для вас важнее: производство, эффективность или влияние.',replies:12},{title:'Главный вопрос сезона 2025–26',tag:'SEASON',text:'Какая команда или игрок сильнее всего изменили ваши ожидания?',replies:8},{title:'GOAT: пик против карьеры',tag:'HISTORY',text:'Должен ли исторический рейтинг сильнее учитывать пик игрока?',replies:21}],...x.pages.forum};
   if(x.gi.title==='Game Impact Index' || !x.gi.title) x.gi.title='GOAT Index';
-  if(!x.gi.text || x.gi.text.includes('влияние игрока через')) {
-    x.gi.text='GI — GOAT Index, наша единая шкала для сравнения силы игрока. Для сезона она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи.';
-  }
+  if(!x.gi.text || x.gi.text.includes('влияние игрока через')) x.gi.text='GI — GOAT Index, наша единая шкала для сравнения силы игрока. Для сезона она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи.';
   if(Array.isArray(x.goat)) x.goat=x.goat.map(p=>{ const q=[...p]; const v=Number(q[2]); if(Number.isFinite(v)&&v>100) q[2]=(v/10).toFixed(2); return q; });
   return x;
 }
-
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 function isCloudConfigured(){
   const c=window.COURTSIDE_CONFIG||{};
@@ -167,6 +182,8 @@ async function initForecast(){
 }
 async function initStats(){
   const d=await getData(), body=document.querySelector('#statsBody'); if(!body)return;
+  const pg=d.pages?.stats||{}; const ey=document.querySelector('#statsEyebrow'), title=document.querySelector('#statsTitle'), intro=document.querySelector('#statsIntro');
+  if(ey)ey.textContent=pg.eyebrow||'06 · PLAYER LAB'; if(title)title.textContent=pg.title||'Top 100 GI · 2025–26'; if(intro)intro.textContent=pg.intro||'';
   const search=document.querySelector('#search'), pos=document.querySelector('#pos'), sort=document.querySelector('#sort');
   function draw(){
     const q=(search.value||'').toLowerCase(), p=pos.value, s=sort.value;
@@ -178,15 +195,16 @@ async function initStats(){
   const im=document.querySelector('#statsImage'); if(im) im.src=d.photos.stats||'nba-4.jpg';
 }
 async function initGI(){
-  const d=await getData(), body=document.querySelector('#giBody');
+  const d=await getData(), pg=d.pages?.gi||{}, body=document.querySelector('#giBody');
   if(body) body.innerHTML=renderStatsTable(d.players.slice().sort((a,b)=>b[7]-a[7]));
-  const t=document.querySelector('#giText'); if(t)t.textContent=d.gi.text;
-  const title=document.querySelector('#giTitle'); if(title)title.textContent=d.gi.title;
-  const im=document.querySelector('#giImage'); if(im)im.src=d.photos.gi||'nba-2.jpg';
+  const ey=document.querySelector('#giEyebrow'), t=document.querySelector('#giText'), title=document.querySelector('#giTitle'), intro=document.querySelector('#giMethodText'), method=document.querySelector('#giMethodTitle'), im=document.querySelector('#giImage');
+  if(ey)ey.textContent=pg.eyebrow||'04 · GOAT INDEX'; if(t)t.textContent=pg.intro||d.gi.text; if(title)title.textContent=pg.title||d.gi.title; if(method)method.textContent=pg.methodTitle||'Что такое GI'; if(intro)intro.textContent=pg.methodText||d.gi.text; if(im)im.src=d.photos.gi||'nba-2.jpg';
   nav('gi');
 }
 async function initGoat(){
-  const d=await getData(), el=document.querySelector('#goatBody');
+  const d=await getData(), pg=d.pages?.goat||{}, el=document.querySelector('#goatBody');
+  const ey=document.querySelector('#goatEyebrow'), title=document.querySelector('#goatTitle'), intro=document.querySelector('#goatIntro');
+  if(ey)ey.textContent=pg.eyebrow||'05 · ALL-TIME'; if(title)title.textContent=pg.title||'GOAT по GI.'; if(intro)intro.textContent=pg.intro||'';
   if(el)el.innerHTML=d.goat.map((p,i)=>`<div class="rank-row"><span class="rank">${String(i+1).padStart(2,'0')}</span><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div><strong>${p[2]}</strong></div>`).join('');
   const im=document.querySelector('#goatImage');if(im)im.src=d.photos.goat||'nba-3.jpg'; nav('goat');
 }
@@ -195,6 +213,16 @@ async function initNews(){
   el.innerHTML=d.news.map((n,i)=>`<article class="news-card"><img src="${esc(/^https?:\/\//i.test(String(n.image||''))?n.image:(d.photos?.[n.image]||n.image||'nba-1.jpg'))}" alt=""><span>${esc(n.tag)}</span><h3>${esc(n.title)}</h3><p>${esc(n.text)}</p></article>`).join('');
   nav('news');
 }
+
+async function initForum(){
+  const d=await getData(), pg=d.pages?.forum||{}, list=document.querySelector('#forumTopics'); if(!list)return;
+  const ey=document.querySelector('#forumEyebrow'), title=document.querySelector('#forumTitle'), intro=document.querySelector('#forumIntro');
+  if(ey)ey.textContent=pg.eyebrow||'07 · DISCUSSION'; if(title)title.textContent=pg.title||'Форум.'; if(intro)intro.textContent=pg.intro||'';
+  const topics=Array.isArray(pg.topics)?pg.topics:[];
+  list.innerHTML=topics.map((x,i)=>`<article class="forum-topic cs-3d"><div class="forum-topic-no">${String(i+1).padStart(2,'0')}</div><div class="forum-topic-main"><span>${esc(x.tag||'DISCUSSION')}</span><h3>${esc(x.title||'Без названия')}</h3><p>${esc(x.text||'')}</p></div><div class="forum-topic-meta"><b>${Number(x.replies)||0}</b><small>ответов</small></div></article>`).join('') || '<div class="card"><h3>Пока нет тем.</h3><p class="muted">Администратор может добавить первую тему через Admin Desk.</p></div>';
+  nav('forum');
+}
+
 function setMsg(text,type='',target='adminMsg'){
   const e=document.querySelector('#'+target);
   if(e){e.textContent=text;e.className='msg '+type;}
@@ -234,7 +262,7 @@ function bindLogin(){
 function fillEditor(d){
   const map={e_siteHeadline:d.site.headline,e_siteIntro:d.site.intro,e_season:d.site.season,e_model:d.site.model,e_mvp:d.forecast.mvp,e_dpoy:d.forecast.dpoy,e_roy:d.forecast.roy,e_mip:d.forecast.mip,e_champion:d.forecast.champion,e_confidence:d.forecast.confidence,e_forecastText:d.forecast.text,e_giTitle:d.gi.title,e_giText:d.gi.text};
   for(const [id,v] of Object.entries(map)){const e=document.getElementById(id);if(e)e.value=v;}
-  renderPlayerEditor(d.players); renderGoatEditor(d.goat); renderNewsEditor(d.news);
+  renderPlayerEditor(d.players); renderGoatEditor(d.goat); renderNewsEditor(d.news); renderPageSettings(d); renderForumEditor(d.pages?.forum||{});
   for(const key of ['hero','gi','goat','stats']){const im=document.getElementById('prev_'+key);if(im)im.src=d.photos[key]||'';}
 }
 function rowInput(value,cls=''){return `<input class="${cls}" value="${esc(value)}">`;}
@@ -274,6 +302,25 @@ function renderNewsEditor(news){
   el.querySelector('#addNews').onclick=()=>{const n=document.createElement('div');n.className='news-edit';n.innerHTML=`<div class="news-edit-head"><b>Новая новость</b><button class="danger mini del-news">Удалить</button></div><div class="edit-grid"><div class="field"><label>Заголовок</label><input class="n-title"></div><div class="field"><label>Категория</label><input class="n-tag" value="NEWS"></div><div class="field" style="grid-column:1/-1"><label>Текст</label><textarea class="n-text"></textarea></div><div class="field"><label>URL фотографии</label><input class="n-image"></div><div class="field"><label>Загрузить фото</label><input class="n-file" type="file" accept="image/*"></div></div>`;el.insertBefore(n,el.querySelector('#addNews'));n.querySelector('.del-news').onclick=()=>n.remove();n.querySelector('.n-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{setMsg('Загружаю фотографию новости…');const url=await uploadImage(f,'news');n.querySelector('.n-image').value=url;setMsg('Фото новости загружено. Нажми «Сохранить всё».','ok')}catch(err){setMsg(err.message,'error')}};};
 }
 function collectNews(){return [...document.querySelectorAll('#newsEditor .news-edit')].map(r=>({title:r.querySelector('.n-title').value.trim(),tag:r.querySelector('.n-tag').value.trim(),text:r.querySelector('.n-text').value.trim(),image:r.querySelector('.n-image').value.trim()}));}
+
+function renderPageSettings(d){
+  const el=document.querySelector('#pageSettingsEditor'); if(!el)return; const p=d.pages||{};
+  const rows=[['gi','GI',p.gi],['goat','GOAT',p.goat],['stats','Статистика',p.stats],['compare','Сравнение',p.compare],['insights','Insights',p.insights]];
+  el.innerHTML=rows.map(([key,label,x])=>`<div class="page-settings-card" data-page-setting="${key}"><div class="page-settings-head"><div><span class="smallcaps">${label}</span><b>Настройки страницы</b></div><span class="page-setting-id">${key}</span></div><div class="edit-grid"><div class="field"><label>Eyebrow</label><input class="pg-eyebrow" value="${esc(x?.eyebrow||'')}"></div><div class="field"><label>Заголовок</label><input class="pg-title" value="${esc(x?.title||'')}"></div><div class="field" style="grid-column:1/-1"><label>Вступление</label><textarea class="pg-intro">${esc(x?.intro||'')}</textarea></div>${key==='gi'?`<div class="field"><label>Заголовок методики</label><input class="pg-method-title" value="${esc(x?.methodTitle||'')}"></div><div class="field"><label>Текст методики</label><textarea class="pg-method-text">${esc(x?.methodText||'')}</textarea></div>`:''}${key==='insights'?`<div class="field"><label>Заголовок заметки</label><input class="pg-note-title" value="${esc(x?.noteTitle||'')}"></div><div class="field"><label>Текст заметки</label><textarea class="pg-note-text">${esc(x?.noteText||'')}</textarea></div>`:''}</div></div>`).join('');
+}
+function collectPageSettings(d){
+  d.pages=d.pages||{};
+  document.querySelectorAll('#pageSettingsEditor .page-settings-card').forEach(card=>{const k=card.dataset.pageSetting;const x=d.pages[k]||{};x.eyebrow=card.querySelector('.pg-eyebrow').value;x.title=card.querySelector('.pg-title').value;x.intro=card.querySelector('.pg-intro').value;if(k==='gi'){x.methodTitle=card.querySelector('.pg-method-title').value;x.methodText=card.querySelector('.pg-method-text').value;}if(k==='insights'){x.noteTitle=card.querySelector('.pg-note-title').value;x.noteText=card.querySelector('.pg-note-text').value;}d.pages[k]=x;});return d;
+}
+function renderForumEditor(pg){
+  const el=document.querySelector('#forumEditor');if(!el)return; const topics=Array.isArray(pg.topics)?pg.topics:[];
+  el.innerHTML=`<div class="edit-grid forum-base"><div class="field"><label>Eyebrow</label><input id="forumEyebrowEdit" value="${esc(pg.eyebrow||'07 · DISCUSSION')}"></div><div class="field"><label>Заголовок</label><input id="forumTitleEdit" value="${esc(pg.title||'Форум.')}"></div><div class="field" style="grid-column:1/-1"><label>Описание</label><textarea id="forumIntroEdit">${esc(pg.intro||'')}</textarea></div></div><div id="forumTopicEditor">${topics.map((t,i)=>forumTopicRow(t,i)).join('')}</div><button class="btn secondary" id="addForumTopic">+ Добавить тему</button>`;
+  el.querySelectorAll('.del-forum-topic').forEach(b=>b.onclick=()=>b.closest('.forum-topic-edit').remove());
+  el.querySelector('#addForumTopic').onclick=()=>{const wrap=el.querySelector('#forumTopicEditor');const r=document.createElement('div');r.innerHTML=forumTopicRow({title:'Новая тема',tag:'DISCUSSION',text:'',replies:0},Date.now());const row=r.firstElementChild;wrap.appendChild(row);row.querySelector('.del-forum-topic').onclick=()=>row.remove();};
+}
+function forumTopicRow(t,i){return `<div class="forum-topic-edit" data-i="${i}"><div class="forum-topic-edit-head"><b>Тема</b><button type="button" class="danger mini del-forum-topic">Удалить</button></div><div class="edit-grid"><div class="field"><label>Заголовок</label><input class="ft-title" value="${esc(t.title||'')}"></div><div class="field"><label>Тег</label><input class="ft-tag" value="${esc(t.tag||'DISCUSSION')}"></div><div class="field"><label>Ответов</label><input class="ft-replies" type="number" min="0" value="${Number(t.replies)||0}"></div><div class="field" style="grid-column:1/-1"><label>Текст</label><textarea class="ft-text">${esc(t.text||'')}</textarea></div></div></div>`;}
+function collectForum(d){d.pages=d.pages||{};const pg=d.pages.forum||{};pg.eyebrow=document.querySelector('#forumEyebrowEdit')?.value||'07 · DISCUSSION';pg.title=document.querySelector('#forumTitleEdit')?.value||'Форум.';pg.intro=document.querySelector('#forumIntroEdit')?.value||'';pg.topics=[...document.querySelectorAll('#forumTopicEditor .forum-topic-edit')].map(r=>({title:r.querySelector('.ft-title').value.trim(),tag:r.querySelector('.ft-tag').value.trim(),text:r.querySelector('.ft-text').value.trim(),replies:Number(r.querySelector('.ft-replies').value)||0}));d.pages.forum=pg;return d;}
+
 function collectBase(d){
   d.site.headline=document.querySelector('#e_siteHeadline').value;
   d.site.intro=document.querySelector('#e_siteIntro').value;
@@ -288,7 +335,7 @@ function collectBase(d){
   d.forecast.text=document.querySelector('#e_forecastText').value;
   d.gi.title=document.querySelector('#e_giTitle').value;
   d.gi.text=document.querySelector('#e_giText').value;
-  return d;
+  return collectForum(collectPageSettings(d));
 }
 function bindAdmin(){
   document.querySelector('#logout').onclick=async()=>{await SB.auth.signOut();location.reload();};
@@ -335,15 +382,17 @@ async function refreshMediaLibrary(){
 }
 async function initCompare(){
   const d=await getData(),a=document.querySelector('#compareA'),b=document.querySelector('#compareB'),o=document.querySelector('#compareResult');
-  if(!a||!b||!o)return; const players=d.players||[];
+  if(!a||!b||!o)return; const players=d.players||[], pg=d.pages?.compare||{};
+  const ey=document.querySelector('#compareEyebrow'), title=document.querySelector('#compareTitle'), intro=document.querySelector('#compareIntro'); if(ey)ey.textContent=pg.eyebrow||'09 · PLAYER MATCHUP'; if(title)title.textContent=pg.title||'Два игрока. Один GI.'; if(intro)intro.textContent=pg.intro||'';
   const opts=players.map((p,i)=>`<option value="${i}">${esc(p[0])} · GI ${p[7]}</option>`).join(''); a.innerHTML=opts;b.innerHTML=opts;if(players.length>1)b.selectedIndex=1;
   const draw=()=>{const A=players[+a.value],B=players[+b.value];if(!A||!B)return;const g=A[7]-B[7];o.innerHTML=`<div class="compare-grid"><article class="compare-card ${g>=0?'winner':''} cs-3d"><small>A</small><h2>${esc(A[0])}</h2><span>${esc(A[1])} · ${esc(A[2])}</span><strong>${A[7]}</strong><em>GI</em><div class="meter"><i style="width:${Math.min(100,Number(A[7])||0)}%"></i></div></article><div class="compare-gap"><small>GI GAP</small><b>${g>0?'+':''}${g.toFixed(1)}</b><span>${g===0?'равно':g>0?esc(A[0])+' выше':esc(B[0])+' выше'}</span></div><article class="compare-card ${g<0?'winner':''} cs-3d"><small>B</small><h2>${esc(B[0])}</h2><span>${esc(B[1])} · ${esc(B[2])}</span><strong>${B[7]}</strong><em>GI</em><div class="meter"><i style="width:${Math.min(100,Number(B[7])||0)}%"></i></div></article></div><div class="compare-metrics card">${[['PTS',A[3],B[3]],['REB',A[4],B[4]],['AST',A[5],B[5]],['TS%',A[6]+'%',B[6]+'%']].map(x=>`<div class="compare-metric"><span>${x[0]}</span><b>${x[1]}</b><i></i><b>${x[2]}</b></div>`).join('')}</div>`};
   a.onchange=b.onchange=draw;draw();nav('compare');
 }
 async function initInsights(){
-  const d=await getData(),l=document.querySelector('#giLeaders'),g=document.querySelector('#efficiencyGap'),t=document.querySelector('#insightText');if(!l||!g)return;const ps=d.players||[];
+  const d=await getData(),pg=d.pages?.insights||{},l=document.querySelector('#giLeaders'),g=document.querySelector('#efficiencyGap'),t=document.querySelector('#insightText');if(!l||!g)return;const ps=d.players||[];
   const top=ps.slice().sort((a,b)=>b[7]-a[7]).slice(0,6),gap=ps.slice().sort((a,b)=>(b[3]-b[7])-(a[3]-a[7])).slice(0,6);
-  l.innerHTML=top.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${p[7]}</strong></div>`).join('');g.innerHTML=gap.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${(p[3]-p[7]).toFixed(1)}</strong></div>`).join('');if(t)t.textContent=top[0]?`${top[0][0]} сейчас возглавляет сезонный GI. Здесь мы ищем расхождения между объёмом производства и общей оценкой.`:'Данные пока не загружены.';nav('insights');
+  const ey=document.querySelector('#insightsEyebrow'),title=document.querySelector('#insightsTitle'),noteTitle=document.querySelector('#insightsNoteTitle'),noteText=document.querySelector('#insightsNoteText'); if(ey)ey.textContent=pg.eyebrow||'10 · INSIGHTS'; if(title)title.textContent=pg.title||'Где цифры расходятся.'; if(t)t.textContent=pg.intro||''; if(noteTitle)noteTitle.textContent=pg.noteTitle||'Не путай объём с влиянием.'; if(noteText)noteText.textContent=pg.noteText||'';
+  l.innerHTML=top.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${p[7]}</strong></div>`).join('');g.innerHTML=gap.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${(p[3]-p[7]).toFixed(1)}</strong></div>`).join('');nav('insights');
 }
 async function startPage(kind){
   try{
@@ -355,6 +404,7 @@ async function startPage(kind){
     if(kind==='news') await initNews();
     if(kind==='compare') await initCompare();
     if(kind==='insights') await initInsights();
+    if(kind==='forum') await initForum();
     if(kind==='editor') await initEditor();
   }catch(e){console.error(e);setMsg?.(e.message,'error');}
 }
