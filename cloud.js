@@ -17,17 +17,28 @@ function normalizeContent(d){
   };
   const baseData=(typeof DEFAULT_DATA!=='undefined'?DEFAULT_DATA:{});
   const x=merge(clone(baseData),clone(d||{}));
-  x.site=x.site||{}; x.forecast=x.forecast||{}; x.gi=x.gi||{}; x.players=Array.isArray(x.players)?x.players:[]; x.goat=Array.isArray(x.goat)?x.goat:[]; x.news=Array.isArray(x.news)?x.news:[];
+  x.site=x.site||{}; x.forecast=x.forecast||{}; x.forecast.arguments=Array.isArray(x.forecast.arguments)?x.forecast.arguments:[]; x.gi=x.gi||{}; x.players=Array.isArray(x.players)?x.players:[]; x.goat=Array.isArray(x.goat)?x.goat:[]; x.news=Array.isArray(x.news)?x.news:[];
   x.photos=x.photos||{}; x.gallery=Array.isArray(x.gallery)?x.gallery:[]; x.media=Array.isArray(x.media)?x.media:[];
+  x.forecast.reasoning=x.forecast.reasoning||'Мы ставим Nikola Jokić первым, потому что его влияние не зависит от одного показателя: он одновременно создаёт эффективное нападение, контролирует подбор и стабильно превращает владения в качественные броски для себя и партнёров.';
+  if(!x.forecast.arguments.length) x.forecast.arguments=['Эффективность и объём производства остаются элитными одновременно.','Создание моментов через пас и игру из поста повышает ценность каждого владения.','Его влияние меньше зависит от попаданий одного конкретного типа и лучше переносится между матчами.'];
   x.pages=x.pages||{};
   x.pages.gi={eyebrow:'04 · GOAT INDEX',title:x.gi.title||'GOAT Index',intro:x.gi.text||'',methodTitle:'Что такое GI',methodText:'GI — GOAT Index. Это внутренняя шкала COURTSIDE для сравнения силы игрока. Она не заменяет PTS, REB, AST или TS%.',...x.pages.gi};
+  if(!x.pages.gi.eyebrow)x.pages.gi.eyebrow='04 · GOAT INDEX';
+  if(!x.pages.gi.title)x.pages.gi.title='GOAT Index';
+  if(!x.pages.gi.intro)x.pages.gi.intro=x.gi.text;
+  if(!x.pages.gi.methodTitle)x.pages.gi.methodTitle='Что такое GI';
+  if(!x.pages.gi.methodText)x.pages.gi.methodText='GI — GOAT Index. Это внутренняя шкала COURTSIDE для сравнения силы игрока. Она не заменяет PTS, REB, AST или TS%.';
   x.pages.goat={eyebrow:'05 · ALL-TIME',title:'GOAT по GI.',intro:'Исторический GOAT Index оценивает карьеру, пик, стабильность, победы и контекст эпохи. Это рейтинг COURTSIDE, а не официальная награда NBA.',...x.pages.goat};
+  if(!x.pages.goat.eyebrow)x.pages.goat.eyebrow='05 · ALL-TIME';
+  if(!x.pages.goat.title)x.pages.goat.title='GOAT по GI.';
+  if(!x.pages.goat.intro)x.pages.goat.intro='Исторический GOAT Index оценивает карьеру, пик, стабильность, победы и контекст эпохи. Это рейтинг COURTSIDE, а не официальная награда NBA.';
   x.pages.stats={eyebrow:'06 · PLAYER LAB',title:'Top 100 GI · 2025–26',intro:'Сезонный рейтинг игроков по основным показателям и GOAT Index.',...x.pages.stats};
-  x.pages.compare={eyebrow:'09 · PLAYER MATCHUP',title:'Два игрока. Один GI.',intro:'Сравнение по GOAT Index и основным показателям сезона.',...x.pages.compare};
-  x.pages.insights={eyebrow:'10 · INSIGHTS',title:'Где цифры расходятся.',intro:'Смотрим, где объём производства и общий GI рассказывают разные истории.',noteTitle:'Не путай объём с влиянием.',noteText:'Insights ищет интересные расхождения внутри текущего набора данных. Это инструмент для поиска вопросов, а не готовый ответ.',...x.pages.insights};
+  if(!x.pages.stats.eyebrow)x.pages.stats.eyebrow='06 · PLAYER LAB';
+  if(!x.pages.stats.title)x.pages.stats.title='Top 100 GI · 2025–26';
+  if(!x.pages.stats.intro)x.pages.stats.intro='Сезонный рейтинг игроков по основным показателям и GOAT Index.';
   x.pages.forum={eyebrow:'07 · DISCUSSION',title:'Форум.',intro:'Обсуждаем матчи, рейтинги, прогнозы и спорные решения.',topics:[{title:'Кто должен быть №1 по GI?',tag:'GI',text:'Сравните лидеров текущего рейтинга и объясните, что для вас важнее: производство, эффективность или влияние.',replies:12},{title:'Главный вопрос сезона 2025–26',tag:'SEASON',text:'Какая команда или игрок сильнее всего изменили ваши ожидания?',replies:8},{title:'GOAT: пик против карьеры',tag:'HISTORY',text:'Должен ли исторический рейтинг сильнее учитывать пик игрока?',replies:21}],...x.pages.forum};
   if(x.gi.title==='Game Impact Index' || !x.gi.title) x.gi.title='GOAT Index';
-  if(!x.gi.text || x.gi.text.includes('влияние игрока через')) x.gi.text='GI — GOAT Index, наша единая шкала для сравнения силы игрока. Для сезона она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи.';
+  if(!x.gi.text || x.gi.text.includes('влияние игрока через')) x.gi.text='GI — GOAT Index, наша единая шкала для сравнения силы игрока. Для сезона она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи. GI не является официальной наградой NBA.';
   if(Array.isArray(x.goat)) x.goat=x.goat.map(p=>{ const q=[...p]; const v=Number(q[2]); if(Number.isFinite(v)&&v>100) q[2]=(v/10).toFixed(2); return q; });
   return x;
 }
@@ -50,15 +61,26 @@ function localData(){
   catch { return clone(DEFAULT_DATA); }
 }
 async function getData(){
+  const fallback=normalizeContent(localData());
+  if(CLOUD_DATA) return normalizeContent(CLOUD_DATA);
   try{
     const sb=await ensureSupabase();
     if(sb){
-      const {data,error}=await sb.from('site_content').select('payload').eq('id',1).maybeSingle();
+      const query=sb.from('site_content').select('payload').eq('id',1).maybeSingle();
+      const result=await Promise.race([
+        query,
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Cloud read timeout')),2200))
+      ]);
+      const {data,error}=result;
       if(error) throw error;
-      if(data?.payload){ CLOUD_DATA=normalizeContent(data.payload); return CLOUD_DATA; }
+      if(data?.payload){
+        CLOUD_DATA=normalizeContent(data.payload);
+        localStorage.setItem(LOCAL_FALLBACK_KEY,JSON.stringify(CLOUD_DATA));
+        return CLOUD_DATA;
+      }
     }
-  }catch(e){ console.warn('Cloud read failed:',e.message); }
-  return normalizeContent(localData());
+  }catch(e){ console.warn('Cloud read failed, using local/default content:',e.message); }
+  return fallback;
 }
 async function saveCloud(payload){
   const sb=await ensureSupabase();
@@ -176,8 +198,10 @@ async function initHome(){
 }
 async function initForecast(){
   const d=await getData();
-  const vals={mvp:d.forecast.mvp,dpoy:d.forecast.dpoy,roy:d.forecast.roy,mip:d.forecast.mip,champion:d.forecast.champion,confidence:d.forecast.confidence,forecastText:d.forecast.text};
+  const vals={mvp:d.forecast.mvp,dpoy:d.forecast.dpoy,roy:d.forecast.roy,mip:d.forecast.mip,champion:d.forecast.champion,confidence:d.forecast.confidence,forecastText:d.forecast.text,forecastReasoning:d.forecast.reasoning||''};
   for(const [id,val] of Object.entries(vals)){const e=document.querySelector('#'+id);if(e)e.textContent=val;}
+  const args=document.querySelector('#forecastArguments');
+  if(args) args.innerHTML=(d.forecast.arguments||[]).filter(Boolean).map((x,i)=>`<div class="forecast-argument"><span class="argument-no">${String(i+1).padStart(2,'0')}</span><p>${esc(x)}</p></div>`).join('');
   nav('forecast');
 }
 async function initStats(){
@@ -260,7 +284,7 @@ function bindLogin(){
   };
 }
 function fillEditor(d){
-  const map={e_siteHeadline:d.site.headline,e_siteIntro:d.site.intro,e_season:d.site.season,e_model:d.site.model,e_mvp:d.forecast.mvp,e_dpoy:d.forecast.dpoy,e_roy:d.forecast.roy,e_mip:d.forecast.mip,e_champion:d.forecast.champion,e_confidence:d.forecast.confidence,e_forecastText:d.forecast.text,e_giTitle:d.gi.title,e_giText:d.gi.text};
+  const map={e_siteHeadline:d.site.headline,e_siteIntro:d.site.intro,e_season:d.site.season,e_model:d.site.model,e_mvp:d.forecast.mvp,e_dpoy:d.forecast.dpoy,e_roy:d.forecast.roy,e_mip:d.forecast.mip,e_champion:d.forecast.champion,e_confidence:d.forecast.confidence,e_forecastText:d.forecast.text,e_forecastReasoning:d.forecast.reasoning||'',e_forecastArg1:d.forecast.arguments?.[0]||'',e_forecastArg2:d.forecast.arguments?.[1]||'',e_forecastArg3:d.forecast.arguments?.[2]||'',e_giTitle:d.gi.title,e_giText:d.gi.text};
   for(const [id,v] of Object.entries(map)){const e=document.getElementById(id);if(e)e.value=v;}
   renderPlayerEditor(d.players); renderGoatEditor(d.goat); renderNewsEditor(d.news); renderPageSettings(d); renderForumEditor(d.pages?.forum||{});
   for(const key of ['hero','gi','goat','stats']){const im=document.getElementById('prev_'+key);if(im)im.src=d.photos[key]||'';}
@@ -305,12 +329,12 @@ function collectNews(){return [...document.querySelectorAll('#newsEditor .news-e
 
 function renderPageSettings(d){
   const el=document.querySelector('#pageSettingsEditor'); if(!el)return; const p=d.pages||{};
-  const rows=[['gi','GI',p.gi],['goat','GOAT',p.goat],['stats','Статистика',p.stats],['compare','Сравнение',p.compare],['insights','Insights',p.insights]];
-  el.innerHTML=rows.map(([key,label,x])=>`<div class="page-settings-card" data-page-setting="${key}"><div class="page-settings-head"><div><span class="smallcaps">${label}</span><b>Настройки страницы</b></div><span class="page-setting-id">${key}</span></div><div class="edit-grid"><div class="field"><label>Eyebrow</label><input class="pg-eyebrow" value="${esc(x?.eyebrow||'')}"></div><div class="field"><label>Заголовок</label><input class="pg-title" value="${esc(x?.title||'')}"></div><div class="field" style="grid-column:1/-1"><label>Вступление</label><textarea class="pg-intro">${esc(x?.intro||'')}</textarea></div>${key==='gi'?`<div class="field"><label>Заголовок методики</label><input class="pg-method-title" value="${esc(x?.methodTitle||'')}"></div><div class="field"><label>Текст методики</label><textarea class="pg-method-text">${esc(x?.methodText||'')}</textarea></div>`:''}${key==='insights'?`<div class="field"><label>Заголовок заметки</label><input class="pg-note-title" value="${esc(x?.noteTitle||'')}"></div><div class="field"><label>Текст заметки</label><textarea class="pg-note-text">${esc(x?.noteText||'')}</textarea></div>`:''}</div></div>`).join('');
+  const rows=[['gi','GI',p.gi],['goat','GOAT',p.goat],['stats','Статистика',p.stats]];
+  el.innerHTML=rows.map(([key,label,x])=>`<div class="page-settings-card" data-page-setting="${key}"><div class="page-settings-head"><div><span class="smallcaps">${label}</span><b>Настройки страницы</b></div><span class="page-setting-id">${key}</span></div><div class="edit-grid"><div class="field"><label>Eyebrow</label><input class="pg-eyebrow" value="${esc(x?.eyebrow||'')}"></div><div class="field"><label>Заголовок</label><input class="pg-title" value="${esc(x?.title||'')}"></div><div class="field" style="grid-column:1/-1"><label>Вступление</label><textarea class="pg-intro">${esc(x?.intro||'')}</textarea></div>${key==='gi'?`<div class="field"><label>Заголовок методики</label><input class="pg-method-title" value="${esc(x?.methodTitle||'')}"></div><div class="field"><label>Текст методики</label><textarea class="pg-method-text">${esc(x?.methodText||'')}</textarea></div>`:''}</div></div>`).join('');
 }
 function collectPageSettings(d){
   d.pages=d.pages||{};
-  document.querySelectorAll('#pageSettingsEditor .page-settings-card').forEach(card=>{const k=card.dataset.pageSetting;const x=d.pages[k]||{};x.eyebrow=card.querySelector('.pg-eyebrow').value;x.title=card.querySelector('.pg-title').value;x.intro=card.querySelector('.pg-intro').value;if(k==='gi'){x.methodTitle=card.querySelector('.pg-method-title').value;x.methodText=card.querySelector('.pg-method-text').value;}if(k==='insights'){x.noteTitle=card.querySelector('.pg-note-title').value;x.noteText=card.querySelector('.pg-note-text').value;}d.pages[k]=x;});return d;
+  document.querySelectorAll('#pageSettingsEditor .page-settings-card').forEach(card=>{const k=card.dataset.pageSetting;const x=d.pages[k]||{};x.eyebrow=card.querySelector('.pg-eyebrow').value;x.title=card.querySelector('.pg-title').value;x.intro=card.querySelector('.pg-intro').value;if(k==='gi'){x.methodTitle=card.querySelector('.pg-method-title').value;x.methodText=card.querySelector('.pg-method-text').value;}d.pages[k]=x;});return d;
 }
 function renderForumEditor(pg){
   const el=document.querySelector('#forumEditor');if(!el)return; const topics=Array.isArray(pg.topics)?pg.topics:[];
@@ -333,6 +357,12 @@ function collectBase(d){
   d.forecast.champion=document.querySelector('#e_champion').value;
   d.forecast.confidence=Number(document.querySelector('#e_confidence').value)||0;
   d.forecast.text=document.querySelector('#e_forecastText').value;
+  d.forecast.reasoning=document.querySelector('#e_forecastReasoning').value;
+  d.forecast.arguments=[
+    document.querySelector('#e_forecastArg1').value.trim(),
+    document.querySelector('#e_forecastArg2').value.trim(),
+    document.querySelector('#e_forecastArg3').value.trim()
+  ].filter(Boolean);
   d.gi.title=document.querySelector('#e_giTitle').value;
   d.gi.text=document.querySelector('#e_giText').value;
   return collectForum(collectPageSettings(d));
@@ -380,20 +410,6 @@ async function refreshMediaLibrary(){
     grid.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=async()=>{if(!confirm('Удалить это изображение из Supabase Storage?'))return;try{const item=btn.closest('.media-item'),d=await getData();for(const k of Object.keys(d.photos||{}))if(d.photos[k]===item.dataset.url)d.photos[k]='';d.gallery=(d.gallery||[]).filter(x=>x.image!==item.dataset.url);await deleteMediaImage(item.dataset.path);await saveCloud(d);await refreshMediaLibrary();setMsg('Изображение удалено.','ok')}catch(e){setMsg(e.message,'error')}});
   }catch(e){grid.innerHTML=`<div class="media-empty"><strong>Не удалось загрузить медиатеку.</strong><span>${esc(e.message)}</span></div>`;setMsg(e.message,'error')}
 }
-async function initCompare(){
-  const d=await getData(),a=document.querySelector('#compareA'),b=document.querySelector('#compareB'),o=document.querySelector('#compareResult');
-  if(!a||!b||!o)return; const players=d.players||[], pg=d.pages?.compare||{};
-  const ey=document.querySelector('#compareEyebrow'), title=document.querySelector('#compareTitle'), intro=document.querySelector('#compareIntro'); if(ey)ey.textContent=pg.eyebrow||'09 · PLAYER MATCHUP'; if(title)title.textContent=pg.title||'Два игрока. Один GI.'; if(intro)intro.textContent=pg.intro||'';
-  const opts=players.map((p,i)=>`<option value="${i}">${esc(p[0])} · GI ${p[7]}</option>`).join(''); a.innerHTML=opts;b.innerHTML=opts;if(players.length>1)b.selectedIndex=1;
-  const draw=()=>{const A=players[+a.value],B=players[+b.value];if(!A||!B)return;const g=A[7]-B[7];o.innerHTML=`<div class="compare-grid"><article class="compare-card ${g>=0?'winner':''} cs-3d"><small>A</small><h2>${esc(A[0])}</h2><span>${esc(A[1])} · ${esc(A[2])}</span><strong>${A[7]}</strong><em>GI</em><div class="meter"><i style="width:${Math.min(100,Number(A[7])||0)}%"></i></div></article><div class="compare-gap"><small>GI GAP</small><b>${g>0?'+':''}${g.toFixed(1)}</b><span>${g===0?'равно':g>0?esc(A[0])+' выше':esc(B[0])+' выше'}</span></div><article class="compare-card ${g<0?'winner':''} cs-3d"><small>B</small><h2>${esc(B[0])}</h2><span>${esc(B[1])} · ${esc(B[2])}</span><strong>${B[7]}</strong><em>GI</em><div class="meter"><i style="width:${Math.min(100,Number(B[7])||0)}%"></i></div></article></div><div class="compare-metrics card">${[['PTS',A[3],B[3]],['REB',A[4],B[4]],['AST',A[5],B[5]],['TS%',A[6]+'%',B[6]+'%']].map(x=>`<div class="compare-metric"><span>${x[0]}</span><b>${x[1]}</b><i></i><b>${x[2]}</b></div>`).join('')}</div>`};
-  a.onchange=b.onchange=draw;draw();nav('compare');
-}
-async function initInsights(){
-  const d=await getData(),pg=d.pages?.insights||{},l=document.querySelector('#giLeaders'),g=document.querySelector('#efficiencyGap'),t=document.querySelector('#insightText');if(!l||!g)return;const ps=d.players||[];
-  const top=ps.slice().sort((a,b)=>b[7]-a[7]).slice(0,6),gap=ps.slice().sort((a,b)=>(b[3]-b[7])-(a[3]-a[7])).slice(0,6);
-  const ey=document.querySelector('#insightsEyebrow'),title=document.querySelector('#insightsTitle'),noteTitle=document.querySelector('#insightsNoteTitle'),noteText=document.querySelector('#insightsNoteText'); if(ey)ey.textContent=pg.eyebrow||'10 · INSIGHTS'; if(title)title.textContent=pg.title||'Где цифры расходятся.'; if(t)t.textContent=pg.intro||''; if(noteTitle)noteTitle.textContent=pg.noteTitle||'Не путай объём с влиянием.'; if(noteText)noteText.textContent=pg.noteText||'';
-  l.innerHTML=top.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${p[7]}</strong></div>`).join('');g.innerHTML=gap.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${(p[3]-p[7]).toFixed(1)}</strong></div>`).join('');nav('insights');
-}
 async function startPage(kind){
   try{
     if(kind==='home') await initHome();
@@ -402,9 +418,20 @@ async function startPage(kind){
     if(kind==='gi') await initGI();
     if(kind==='goat') await initGoat();
     if(kind==='news') await initNews();
-    if(kind==='compare') await initCompare();
-    if(kind==='insights') await initInsights();
     if(kind==='forum') await initForum();
     if(kind==='editor') await initEditor();
-  }catch(e){console.error(e);setMsg?.(e.message,'error');}
+  }catch(e){
+    console.error(e);
+    try{
+      CLOUD_DATA=null;
+      localStorage.removeItem(LOCAL_FALLBACK_KEY);
+      if(kind==='home') await initHome();
+      if(kind==='forecast') await initForecast();
+      if(kind==='stats') await initStats();
+      if(kind==='gi') await initGI();
+      if(kind==='goat') await initGoat();
+      if(kind==='news') await initNews();
+      if(kind==='forum') await initForum();
+    }catch(fallbackError){console.error(fallbackError)}
+  }
 }

@@ -16,8 +16,6 @@
       <a data-page="gi" href="gi.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 3.5 14.7 9l6.1.9-4.4 4.3 1 6.1-5.4-2.8-5.4 2.8 1-6.1-4.4-4.3L9.3 9z"/></svg><span>GI</span></a>
       <a data-page="goat" href="goat.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 9.5h14l-1 10H6zM8 9.5V7a4 4 0 0 1 8 0v2.5M9 14h6"/></svg><span>GOAT</span></a>
       <a data-page="news" href="news.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg><span>Новости</span></a>
-      <a data-page="compare" href="compare.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M4 7h6v10H4zM14 7h6v10h-6zM10 12h4"/></svg><span>Сравнение</span></a>
-      <a data-page="insights" href="insights.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 18V6m0 12h14M8 15l3-4 3 2 4-6"/></svg><span>Insights</span></a>
       <a data-page="forum" href="forum.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg><span>Форум</span></a>
       <a data-page="editor" href="editor.html"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 8 8M12 7v5l3 2"/><path d="M17 4h3v3"/></svg><span>Админ</span></a>
     </nav>
@@ -42,6 +40,10 @@
 <div class="field"><label>ROY</label><input id="e_roy"></div><div class="field"><label>MIP</label><input id="e_mip"></div>
 <div class="field"><label>Чемпион</label><input id="e_champion"></div><div class="field"><label>Confidence</label><input id="e_confidence" type="number" min="0" max="100"></div>
 <div class="field" style="grid-column:1/-1"><label>Текст прогноза</label><textarea id="e_forecastText"></textarea></div>
+<div class="field" style="grid-column:1/-1"><label>Почему именно этот прогноз</label><textarea id="e_forecastReasoning" placeholder="Главный редакционный аргумент..."></textarea></div>
+<div class="field"><label>Аргумент №1</label><input id="e_forecastArg1"></div>
+<div class="field"><label>Аргумент №2</label><input id="e_forecastArg2"></div>
+<div class="field" style="grid-column:1/-1"><label>Аргумент №3</label><input id="e_forecastArg3"></div>
 <div class="field"><label>Название GI · GOAT Index</label><input id="e_giTitle"></div><div class="field"><label>Описание GI · GOAT Index</label><textarea id="e_giText"></textarea></div>
 </div></section>
 
@@ -63,7 +65,7 @@
 
 <section class="admin-section"><div class="eyebrow">06 · Page Studio</div><h2 class="section-title">Собери главную сам.</h2><p class="muted">Меняй порядок блоков, скрывай их, редактируй заголовки и тексты, добавляй свои текстовые или фото-блоки. Для фотографий используй URL из Media Library.</p><div id="pageStudio"></div></section>
 
-<section class="admin-section"><div class="eyebrow">06 · Page Controls</div><h2 class="section-title">Все остальные страницы.</h2><p class="muted">Теперь отсюда можно менять заголовки, вступления и редакционные подписи GI, GOAT, статистики, сравнения и Insights. Изменения сохраняются в Supabase и видны всем.</p><div id="pageSettingsEditor"></div></section>
+<section class="admin-section"><div class="eyebrow">06 · Page Controls</div><h2 class="section-title">Все остальные страницы.</h2><p class="muted">Здесь можно менять заголовки, вступления и редакционные подписи GI, GOAT и статистики. Форум редактируется отдельным блоком ниже. Изменения сохраняются в Supabase и видны всем.</p><div id="pageSettingsEditor"></div></section>
 
 <section class="admin-section"><div class="eyebrow">07 · Forum</div><h2 class="section-title">Форум.</h2><p class="muted">Создавай и редактируй темы форума. Это редакционная лента обсуждений, поэтому ты полностью контролируешь её содержимое.</p><div id="forumEditor"></div></section>
 

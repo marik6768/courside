@@ -1,29 +1,13 @@
-# COURTSIDE v7
+# COURTSIDE v10
 
-Includes all previous v4-v6 features plus:
-- GOAT Index (GI) terminology
-- responsive mobile navigation
-- compare players by GI
-- Insights page
-- Supabase cloud CMS
-- Media Library with unlimited uploads
-- homepage Page Studio
-- reorder / show-hide homepage blocks
-- edit block eyebrow/title/text/button/link
-- add custom text and photo blocks
-- reset homepage structure
+1. Keep `config.js` configured with the Supabase project URL and Publishable key.
+2. Open `editor.html` and sign in with the admin account.
+3. Edit Home, Forecast, Stats, GI, GOAT, News and Forum from Admin Desk.
+4. Use Media Library to upload as many images as needed, then assign them to page slots or the Home gallery.
+5. `index.html` is the public home page.
 
-## Deploy
-Upload all files to the existing GitHub repository and replace the old files.
-Do NOT rerun Supabase SQL if the current database is already working.
+Removed from this build:
+- Compare
+- Insights
 
-## Admin
-Open `editor.html`, sign in with the existing Supabase admin account, then use:
-1. Editorial fields
-2. Player Lab
-3. GOAT
-4. Newsroom
-5. Media Library
-6. Page Studio
-
-Page Studio controls the homepage structure. Media Library stores uploaded images in the existing `site-images` bucket.
+No additional SQL migration is required for the v10 content fields. The new forecast reasoning fields live inside the existing `site_content.payload` JSON.

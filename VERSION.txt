@@ -1,7 +1,8 @@
-COURTSIDE v9 · CMS + functional pages
-- Full editorial controls for GI, GOAT, Stats, Compare, Insights, Forum
-- Functional forum topics managed from Admin Desk
-- Player comparison with live GI/stat comparison
-- Robust content normalization against missing Supabase fields
-- Media Library preserved
-- Previous visual system preserved
+COURTSIDE v10 · stable editorial build
+- Removed Compare and Insights from the public navigation and runtime.
+- Fixed blank pages by adding resilient cloud reads and normalized page content.
+- GI page now always has a visible GOAT Index methodology description.
+- Forecasts now include editable reasoning and three editorial arguments.
+- Admin controls cover Home, Forecast, Stats, GI, GOAT, News, Forum, Page Studio and Media Library.
+- Media Library supports unlimited uploads through Supabase Storage.
+- Preserved the existing visual system, animations, 3D hover effects and mobile menu.

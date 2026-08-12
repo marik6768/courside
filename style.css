@@ -230,3 +230,11 @@ body:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:99;opac
 .page-settings-head,.forum-topic-edit-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:16px}.page-settings-head>div{display:grid;gap:4px}.page-settings-head b{font-size:15px}.page-setting-id{font-size:9px;letter-spacing:1.5px;color:#8f8580;text-transform:uppercase;border:1px solid #393033;padding:6px 8px;border-radius:8px}
 .forum-topic-edit + .forum-topic-edit{margin-top:12px}.forum-topic-edit-head b{font-size:13px;color:#ddd3ca}.forum-base{margin-bottom:16px}
 @media(max-width:760px){.forum-topic{grid-template-columns:42px 1fr}.forum-topic-meta{grid-column:2;text-align:left;border-left:0;border-top:1px solid #332b2d;padding:10px 0 0}.forum-topic-no{font-size:30px}.page-settings-card,.forum-topic-edit{padding:15px}}
+
+/* COURTSIDE v10 · Forecast editorial reasoning */
+.forecast-reasoning{overflow:visible}
+.forecast-reasoning .section-title{margin-top:8px}
+.forecast-arguments{display:grid;gap:10px;margin-top:22px}
+.forecast-argument{display:grid;grid-template-columns:42px 1fr;gap:12px;align-items:start;padding:14px 0;border-top:1px solid var(--line)}
+.forecast-argument .argument-no{color:var(--accent);font:700 12px Georgia,serif}
+.forecast-argument p{margin:0;color:#b8b1a8;font-size:14px;line-height:1.65}
