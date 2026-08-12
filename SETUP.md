@@ -1,12 +1,29 @@
-# COURTSIDE v9
+# COURTSIDE v7
 
-This update keeps the existing Supabase project and data. Do NOT rerun the SQL schema unless the database itself was deleted.
+Includes all previous v4-v6 features plus:
+- GOAT Index (GI) terminology
+- responsive mobile navigation
+- compare players by GI
+- Insights page
+- Supabase cloud CMS
+- Media Library with unlimited uploads
+- homepage Page Studio
+- reorder / show-hide homepage blocks
+- edit block eyebrow/title/text/button/link
+- add custom text and photo blocks
+- reset homepage structure
 
-1. Upload all files in this folder to the GitHub Pages repository root.
-2. Replace the old files when GitHub asks.
-3. Wait for the Pages workflow to finish.
-4. Open the site and then `editor.html` for the CMS.
+## Deploy
+Upload all files to the existing GitHub repository and replace the old files.
+Do NOT rerun Supabase SQL if the current database is already working.
 
-The admin uses the existing `profiles.is_admin` flag. Media is stored in the existing public `site-images` bucket.
+## Admin
+Open `editor.html`, sign in with the existing Supabase admin account, then use:
+1. Editorial fields
+2. Player Lab
+3. GOAT
+4. Newsroom
+5. Media Library
+6. Page Studio
 
-If the cloud is temporarily unavailable, public pages fall back to the local `data.js` copy instead of rendering an empty screen.
+Page Studio controls the homepage structure. Media Library stores uploaded images in the existing `site-images` bucket.

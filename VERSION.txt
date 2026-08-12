@@ -1,0 +1,1 @@
+COURTSIDE v8.0 · visual polish, corrected navigation icons, new favicon, violet accent, motion/3D refinements, robust Compare/Insights init.

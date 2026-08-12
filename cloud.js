@@ -1,86 +1,360 @@
+
 let SB = null;
+let CLOUD_DATA = null;
 const LOCAL_FALLBACK_KEY = 'courtsideDataV2';
 
-const PAGE_NAMES = {home:'Главная',forecast:'Прогнозы',stats:'Статистика',gi:'GI',goat:'GOAT',news:'Новости',forum:'Форум'};
-
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
-function esc(s){ return String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
 function normalizeContent(d){
-  const x = clone(d || {});
-  x.site = x.site || {}; x.forecast = x.forecast || {}; x.gi = x.gi || {}; x.photos = x.photos || {}; x.news = Array.isArray(x.news)?x.news:[]; x.players=Array.isArray(x.players)?x.players:[]; x.goat=Array.isArray(x.goat)?x.goat:[];
-  if(!x.gi.title || x.gi.title === 'Game Impact Index') x.gi.title='GOAT Index';
-  if(!x.gi.text) x.gi.text='GI — GOAT Index, единая шкала COURTSIDE для оценки силы игрока. Она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи.';
-  if(!Array.isArray(x.gallery)) x.gallery=[];
-  if(!x.pages) x.pages={};
-  if(!x.site.blocks) x.site.blocks=defaultHomeBlocks();
-  if(Array.isArray(x.goat)) x.goat=x.goat.map(p=>{const q=[...p];const v=Number(q[2]);if(Number.isFinite(v)&&v>100)q[2]=v/10;return q});
+  const x=clone(d||{});
+  x.gi=x.gi||{};
+  if(x.gi.title==='Game Impact Index' || !x.gi.title) x.gi.title='GOAT Index';
+  if(!x.gi.text || x.gi.text.includes('влияние игрока через')) {
+    x.gi.text='GI — GOAT Index, наша единая шкала для сравнения силы игрока. Для сезона она учитывает производство, эффективность, создание моментов, защиту, стабильность и вклад в победы. Для исторического рейтинга добавляется карьерный вес и контекст эпохи.';
+  }
+  if(Array.isArray(x.goat)) x.goat=x.goat.map(p=>{ const q=[...p]; const v=Number(q[2]); if(Number.isFinite(v)&&v>100) q[2]=(v/10).toFixed(2); return q; });
   return x;
 }
-function isCloudConfigured(){const c=window.COURTSIDE_CONFIG||{};return !!(c.SUPABASE_URL&&c.SUPABASE_KEY&&!String(c.SUPABASE_URL).includes('PASTE_')&&!String(c.SUPABASE_KEY).includes('PASTE_'));}
-async function ensureSupabase(){if(!isCloudConfigured())return null;if(SB)return SB;if(!window.supabase)throw new Error('Supabase SDK не загрузился.');const c=window.COURTSIDE_CONFIG;SB=window.supabase.createClient(c.SUPABASE_URL,c.SUPABASE_KEY);return SB;}
-function localData(){try{const s=JSON.parse(localStorage.getItem(LOCAL_FALLBACK_KEY)||'null');return normalizeContent(s||DEFAULT_DATA)}catch{return normalizeContent(DEFAULT_DATA)}}
-async function getData(){try{const sb=await ensureSupabase();if(sb){const {data,error}=await sb.from('site_content').select('payload').eq('id',1).maybeSingle();if(error)throw error;if(data?.payload)return normalizeContent(data.payload)}}catch(e){console.warn('COURTSIDE cloud read:',e.message)}return localData()}
-async function saveCloud(payload){const sb=await ensureSupabase();if(!sb)throw new Error('Supabase не настроен.');const {data:{user}}=await sb.auth.getUser();if(!user)throw new Error('Нужно войти.');const {data:profile,error:pe}=await sb.from('profiles').select('is_admin').eq('id',user.id).maybeSingle();if(pe)throw pe;if(!profile?.is_admin)throw new Error('У аккаунта нет прав администратора.');const clean=normalizeContent(payload);const {error}=await sb.from('site_content').upsert({id:1,payload:clean,updated_at:new Date().toISOString()});if(error)throw error;localStorage.setItem(LOCAL_FALLBACK_KEY,JSON.stringify(clean));return clean;}
-async function isAdmin(){try{const sb=await ensureSupabase();if(!sb)return false;const {data:{user}}=await sb.auth.getUser();if(!user)return false;const {data}=await sb.from('profiles').select('is_admin').eq('id',user.id).maybeSingle();return !!data?.is_admin}catch{return false}}
-function nav(active){document.querySelectorAll('.links a').forEach(a=>a.classList.toggle('active',a.dataset.page===active));}
-function asset(d,v,fallback=''){if(!v)return fallback;if(/^https?:\/\//i.test(v))return v;return d.photos?.[v]||v||fallback;}
+
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function isCloudConfigured(){
+  const c=window.COURTSIDE_CONFIG||{};
+  return !!(c.SUPABASE_URL && c.SUPABASE_KEY &&
+    !c.SUPABASE_URL.includes('PASTE_') && !c.SUPABASE_KEY.includes('PASTE_'));
+}
+async function ensureSupabase(){
+  if(!isCloudConfigured()) return null;
+  if(SB) return SB;
+  if(!window.supabase) throw new Error('Supabase library did not load.');
+  const c=window.COURTSIDE_CONFIG;
+  SB=window.supabase.createClient(c.SUPABASE_URL,c.SUPABASE_KEY);
+  return SB;
+}
+function localData(){
+  try { const s=JSON.parse(localStorage.getItem(LOCAL_FALLBACK_KEY)||'null'); return s?Object.assign(clone(DEFAULT_DATA),s):clone(DEFAULT_DATA); }
+  catch { return clone(DEFAULT_DATA); }
+}
+async function getData(){
+  try{
+    const sb=await ensureSupabase();
+    if(sb){
+      const {data,error}=await sb.from('site_content').select('payload').eq('id',1).maybeSingle();
+      if(error) throw error;
+      if(data?.payload){ CLOUD_DATA=normalizeContent(data.payload); return CLOUD_DATA; }
+    }
+  }catch(e){ console.warn('Cloud read failed:',e.message); }
+  return normalizeContent(localData());
+}
+async function saveCloud(payload){
+  const sb=await ensureSupabase();
+  if(!sb) throw new Error('Supabase не настроен. Заполни config.js.');
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user) throw new Error('Нужно войти в админ-панель.');
+  const {data:profile,error:pe}=await sb.from('profiles').select('is_admin').eq('id',user.id).maybeSingle();
+  if(pe) throw pe;
+  if(!profile?.is_admin) throw new Error('У этого аккаунта нет прав администратора.');
+  const {error}=await sb.from('site_content').upsert({id:1,payload,updated_at:new Date().toISOString()});
+  if(error) throw error;
+  CLOUD_DATA=clone(payload);
+  localStorage.setItem(LOCAL_FALLBACK_KEY,JSON.stringify(payload));
+}
+function assetUrl(path){ return path || ''; }
+
+async function listMediaLibrary(){
+  const sb=await ensureSupabase(); if(!sb) throw new Error('Supabase не настроен.');
+  const {data,error}=await sb.storage.from('site-images').list('',{limit:100,sortBy:{column:'created_at',order:'desc'}});
+  if(error) throw error;
+  return (data||[]).filter(x=>x.name && !x.name.endsWith('/')).map(x=>{
+    const path=x.name;
+    const {data:u}=sb.storage.from('site-images').getPublicUrl(path);
+    return {name:x.name,path,url:u.publicUrl,size:x.metadata?.size||0,created_at:x.created_at||''};
+  });
+}
+async function deleteMediaImage(path){
+  const sb=await ensureSupabase(); if(!sb) throw new Error('Supabase не настроен.');
+  if(!(await isAdmin())) throw new Error('Нет прав администратора.');
+  const {error}=await sb.storage.from('site-images').remove([path]);
+  if(error) throw error;
+}
+async function addGalleryImage(url,title='Новая фотография',caption=''){
+  const d=await getData(); d.gallery=Array.isArray(d.gallery)?d.gallery:[];
+  d.gallery.unshift({title,caption,image:url}); await saveCloud(d); return d;
+}
+
+async function uploadImage(file, slot){
+  const sb=await ensureSupabase();
+  if(!sb) throw new Error('Supabase не настроен.');
+  const {data:{user}}=await sb.auth.getUser();
+  if(!user) throw new Error('Сначала войди.');
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+  const safeSlot=String(slot).replace(/[^a-z0-9_-]/gi,'-');
+  const path=`${safeSlot}-${Date.now()}.${ext}`;
+  const {error}=await sb.storage.from('site-images').upload(path,file,{upsert:false,contentType:file.type||'image/jpeg',cacheControl:'3600'});
+  if(error) throw error;
+  const {data}=sb.storage.from('site-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+async function isAdmin(){
+  try{
+    const sb=await ensureSupabase();
+    if(!sb) return false;
+    const {data:{user}}=await sb.auth.getUser();
+    if(!user) return false;
+    const {data,error}=await sb.from('profiles').select('is_admin').eq('id',user.id).maybeSingle();
+    return !error && !!data?.is_admin;
+  }catch{return false}
+}
+
+function nav(active){
+  document.querySelectorAll('.links a').forEach(a=>a.classList.toggle('active',a.dataset.page===active));
+}
+
+function renderStatsTable(arr){
+  return arr.map((p,i)=>`<tr>
+    <td class="rank-cell">${i+1}</td>
+    <td><div class="player-cell"><b>${esc(p[0])}</b><span>${esc(p[1])}</span></div></td>
+    <td>${esc(p[2])}</td><td>${p[3]}</td><td>${p[4]}</td><td>${p[5]}</td><td>${p[6]}%</td><td class="gi-cell">${p[7]}</td>
+  </tr>`).join('');
+}
+
 
 function defaultHomeBlocks(){return [
-{id:'hero',type:'hero',visible:true,eyebrow:'01 · COURTSIDE',title:'{{headline}}',text:'{{intro}}',quote:'Смотреть на игру целиком. Не только на строку с очками.',image:'hero'},
-{id:'book',type:'split',visible:true,eyebrow:'THE BOOK',title:'Смотреть глубже.',heading:'Сначала цифры. Потом выводы.',text:'Статистика показывает результат. GOAT Index собирает картину целиком.',buttonText:'Статистика →',buttonHref:'stats.html',image:'stats'},
-{id:'forecast',type:'feature',visible:true,eyebrow:'02 · FORECAST',title:'Прогноз на сезон.',text:'{{forecastText}}',buttonText:'Все прогнозы →',buttonHref:'forecast.html'},
-{id:'gi',type:'feature',visible:true,eyebrow:'03 · GOAT INDEX',title:'{{giTitle}}',text:'{{giText}}',buttonText:'Открыть GI →',buttonHref:'gi.html',image:'gi'},
-{id:'news',type:'news',visible:true,eyebrow:'04 · NEWSROOM',title:'Последние записи.',limit:3},
-{id:'note',type:'quote',visible:false,eyebrow:'05 · NOTE',title:'Твоя глава.',text:'Добавь собственный материал через Page Studio.'}
+  {id:'hero',type:'hero',visible:true,eyebrow:'01 · COURTSIDE',title:'{{headline}}',text:'{{intro}}',quote:'Смотреть на игру целиком. Не только на строку с очками.',image:'hero'},
+  {id:'book',type:'split',visible:true,eyebrow:'THE BOOK',title:'Смотреть глубже.',heading:'Сначала цифры. Потом выводы.',text:'Статистика показывает результат. GOAT Index помогает собрать картину целиком.',buttonText:'Статистика →',buttonHref:'stats.html',image:'stats'},
+  {id:'forecast',type:'feature',visible:true,eyebrow:'02 · FORECAST',title:'Прогноз на сезон.',text:'{{forecastText}}',buttonText:'Все прогнозы →',buttonHref:'forecast.html'},
+  {id:'gi',type:'feature',visible:true,eyebrow:'03 · GOAT INDEX',title:'{{giTitle}}',text:'{{giText}}',buttonText:'Открыть GI →',buttonHref:'gi.html',image:'gi'},
+  {id:'news',type:'news',visible:true,eyebrow:'04 · NEWSROOM',title:'Последние записи.',limit:3},
+  {id:'custom',type:'text',visible:false,eyebrow:'05 · NOTE',title:'Новая глава.',text:'Добавь сюда свой текст из админки.'}
 ]}
-function resolveToken(v,d){return String(v??'').replace(/\{\{headline\}\}/g,d.site.headline||'').replace(/\{\{intro\}\}/g,d.site.intro||'').replace(/\{\{forecastText\}\}/g,d.forecast.text||'').replace(/\{\{giTitle\}\}/g,d.gi.title||'').replace(/\{\{giText\}\}/g,d.gi.text||'')}
-function homeBlocks(d){if(!Array.isArray(d.site.blocks)||!d.site.blocks.length)d.site.blocks=defaultHomeBlocks();return d.site.blocks}
-function pageBlocks(d,page){d.pages=d.pages||{};return Array.isArray(d.pages[page])?d.pages[page]:[]}
-function renderBlocks(d,blocks){return blocks.filter(b=>b.visible!==false).map(b=>{
- const title=esc(resolveToken(b.title||'',d)), text=esc(resolveToken(b.text||'',d)), image=asset(d,b.image||b.imageUrl,'');
- if(b.type==='image')return `<section class="section editorial-block cs-reveal"><div class="eyebrow">${esc(b.eyebrow||'IMAGE')}</div><h2 class="section-title">${title}</h2><figure class="editorial-image"><img src="${esc(image)}" alt=""><figcaption>${text}</figcaption></figure></section>`;
- if(b.type==='quote')return `<section class="section editorial-block cs-reveal"><div class="quote-panel"><div class="eyebrow">${esc(b.eyebrow||'NOTE')}</div><h2>${title}</h2><p>${text}</p></div></section>`;
- if(b.type==='split')return `<section class="section editorial-block cs-reveal"><div class="editorial-split"><div><div class="eyebrow">${esc(b.eyebrow||'SECTION')}</div><h2 class="section-title">${title}</h2><p class="lead">${text}</p>${b.buttonHref?`<a class="btn" href="${esc(b.buttonHref)}">${esc(b.buttonText||'Открыть →')}</a>`:''}</div><div class="editorial-media cs-3d">${image?`<img src="${esc(image)}" alt="">`:''}</div></div></section>`;
- if(b.type==='stats')return `<section class="section editorial-block cs-reveal"><div class="stat-feature"><div><div class="eyebrow">${esc(b.eyebrow||'DATA')}</div><h2 class="section-title">${title}</h2><p class="lead">${text}</p></div><div class="stat-number">${esc(b.number||'--')}<small>${esc(b.numberLabel||'GI')}</small></div></div></section>`;
- return `<section class="section editorial-block cs-reveal"><div class="eyebrow">${esc(b.eyebrow||'NOTE')}</div><h2 class="section-title">${title}</h2><p class="lead">${text}</p>${b.buttonHref?`<a class="btn" href="${esc(b.buttonHref)}">${esc(b.buttonText||'Открыть →')}</a>`:''}</section>`;
- }).join('')}
-function bind3D(root){root.querySelectorAll('.cs-3d,.card,.news-card,.forecast-card,.hero-photo').forEach(e=>{e.classList.add('cs-3d');e.onpointermove=ev=>{const r=e.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width-.5,y=(ev.clientY-r.top)/r.height-.5;e.style.setProperty('--rx',`${-y*3}deg`);e.style.setProperty('--ry',`${x*4}deg`)};e.onpointerleave=()=>{e.style.setProperty('--rx','0deg');e.style.setProperty('--ry','0deg')}})}
-function reveal(root){root.querySelectorAll('.cs-reveal').forEach((e,i)=>setTimeout(()=>e.classList.add('cs-in'),i*65));if('IntersectionObserver'in window){const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.classList.add('cs-in');io.unobserve(e)}}),{threshold:.04});root.querySelectorAll('.cs-reveal').forEach(e=>io.observe(e))}}
-function renderHome(d){const root=document.querySelector('#homeCanvas');if(!root)return;const blocks=homeBlocks(d).filter(b=>b.visible!==false);root.innerHTML=blocks.map(b=>{const image=asset(d,b.image,'');const t=esc(resolveToken(b.title||'',d)),x=esc(resolveToken(b.text||'',d));if(b.type==='hero')return `<section class="hero cs-reveal"><div class="hero-copy"><div class="eyebrow">${esc(b.eyebrow||'')}</div><h1>${t}</h1><p class="lead">${x}</p><div class="rule"></div><p class="quote">${esc(b.quote||'')}</p></div><div class="hero-photo cs-3d"><img src="${esc(image||'nba-1.jpg')}" alt="COURTSIDE"><div class="caption">${esc(b.caption||'REGULAR SEASON · SPEED · SPACE · READING THE POSSESSION')}</div></div></section>`;if(b.type==='split')return `<section class="section cs-reveal"><div class="rule"></div><div class="grid2"><div><div class="eyebrow">${esc(b.eyebrow||'')}</div><h2 class="section-title">${t}</h2><h3>${esc(b.heading||'')}</h3><p class="lead">${x}</p></div><div class="card cs-3d">${image?`<img class="block-image" src="${esc(image)}" alt="">`:''}<h3>${esc(b.cardTitle||b.heading||'')}</h3><p class="muted">${x}</p>${b.buttonHref?`<a class="btn" href="${esc(b.buttonHref)}">${esc(b.buttonText||'Открыть →')}</a>`:''}</div></div></section>`;if(b.type==='news'){return `<section class="section cs-reveal"><div class="eyebrow">${esc(b.eyebrow||'')}</div><h2 class="section-title">${t}</h2><div class="news-grid">${d.news.slice(0,Number(b.limit)||3).map(n=>`<article class="news-card cs-3d"><img src="${esc(asset(d,n.image,'nba-2.jpg'))}" alt=""><span>${esc(n.tag)}</span><h3>${esc(n.title)}</h3><p>${esc(n.text)}</p></article>`).join('')}</div></section>`}return `<section class="section cs-reveal"><div class="card cs-3d">${image?`<img class="block-image" src="${esc(image)}" alt="">`:''}<div class="eyebrow">${esc(b.eyebrow||'')}</div><h2 class="section-title">${t}</h2><p class="lead">${x}</p>${b.buttonHref?`<a class="btn" href="${esc(b.buttonHref)}">${esc(b.buttonText||'Открыть →')}</a>`:''}</div></section>`}).join('');bind3D(root);reveal(root)}
-function renderPageBlocks(d,page){const root=document.querySelector('#pageCanvas');if(!root)return;const blocks=pageBlocks(d,page);root.innerHTML=blocks.length?renderBlocks(d,blocks):'';bind3D(root);reveal(root)}
+function homeBlocks(d){d.site=d.site||{};if(!Array.isArray(d.site.blocks)||!d.site.blocks.length)d.site.blocks=defaultHomeBlocks();return d.site.blocks}
+function resolveToken(v,d){return String(v??'').replace(/\{\{headline\}\}/g,d.site.headline).replace(/\{\{intro\}\}/g,d.site.intro).replace(/\{\{forecastText\}\}/g,d.forecast.text).replace(/\{\{giTitle\}\}/g,d.gi.title).replace(/\{\{giText\}\}/g,d.gi.text)}
+function blockImage(d,key){if(!key)return ''; if(/^https?:\/\//i.test(String(key)))return String(key); return d.photos?.[key]||key}
+function renderHomeBlocks(d){const root=document.querySelector('#homeCanvas');if(!root)return;const blocks=homeBlocks(d).filter(b=>b.visible!==false);const img=(b)=>blockImage(d,b.image);root.innerHTML=blocks.map(b=>{
+ const e=esc(b.eyebrow||'');const t=esc(resolveToken(b.title||'',d));const x=esc(resolveToken(b.text||'',d));
+ if(b.type==='hero')return `<section class="hero cs-reveal"><div class="hero-copy"><div class="eyebrow">${e}</div><h1>${t}</h1><p class="lead">${x}</p><div class="rule"></div><p class="quote">${esc(b.quote||'')}</p></div><div class="hero-photo cs-3d"><img src="${esc(img(b)||'nba-1.jpg')}" alt=""><div class="caption">${esc(b.caption||'REGULAR SEASON · SPEED · SPACE · READING THE POSSESSION')}</div><div class="hero-data-chip"><b>GI</b><strong>${esc(d.players?.[0]?.[7]??'98.0')}</strong><span>LEADERS</span></div></div></section>`;
+ if(b.type==='split')return `<section class="section cs-reveal"><div class="rule"></div><div class="grid2"><div><div class="eyebrow">${e}</div><h2 class="section-title">${t}</h2><h3>${esc(b.heading||'')}</h3><p class="lead">${x}</p></div><div class="card cs-3d">${img(b)?`<img class="block-image" src="${esc(img(b))}" alt="">`:''}<h3>${esc(b.cardTitle||b.heading||'Открыть Player Lab')}</h3><p class="muted">${x}</p><a class="btn" href="${esc(b.buttonHref||'stats.html')}">${esc(b.buttonText||'Открыть →')}</a></div></div></section>`;
+ if(b.type==='news'){const ns=d.news.slice(0,Number(b.limit)||3);return `<section class="section cs-reveal"><div class="eyebrow">${e}</div><h2 class="section-title">${t}</h2><div class="news-grid">${ns.map(n=>`<article class="news-card cs-3d"><img src="${esc(/^https?:\/\//i.test(String(n.image||''))?n.image:(d.photos?.[n.image]||n.image||'nba-1.jpg'))}" alt=""><span>${esc(n.tag)}</span><h3>${esc(n.title)}</h3><p>${esc(n.text)}</p></article>`).join('')}</div></section>`}
+ if(b.type==='feature')return `<section class="section cs-reveal"><div class="card cs-3d">${img(b)?`<img class="block-image" src="${esc(img(b))}" alt="">`:''}<div class="eyebrow">${e}</div><h2 class="section-title">${t}</h2><p class="lead">${x}</p>${b.buttonHref?`<a class="btn" href="${esc(b.buttonHref)}">${esc(b.buttonText||'Открыть →')}</a>`:''}</div></section>`;
+ if(b.type==='image')return `<section class="section cs-reveal"><div class="eyebrow">${e}</div><h2 class="section-title">${t}</h2><figure class="studio-image"><img src="${esc(img(b)||b.imageUrl||'')}" alt="${t}"><figcaption>${x}</figcaption></figure></section>`;
+ return `<section class="section cs-reveal"><div class="eyebrow">${e}</div><h2 class="section-title">${t}</h2><p class="lead">${x}</p>${b.buttonHref?`<a class="btn" href="${esc(b.buttonHref)}">${esc(b.buttonText||'Открыть →')}</a>`:''}</section>`
+ }).join('');requestAnimationFrame(()=>{root.querySelectorAll('.cs-reveal').forEach((e,i)=>setTimeout(()=>e.classList.add('cs-in'),i*70));root.querySelectorAll('.cs-3d').forEach(e=>{e.onpointermove=x=>{const r=e.getBoundingClientRect(),a=(x.clientX-r.left)/r.width-.5,c=(x.clientY-r.top)/r.height-.5;e.style.setProperty('--rx',`${-c*3}deg`);e.style.setProperty('--ry',`${a*4}deg`)};e.onpointerleave=()=>{e.style.setProperty('--rx','0deg');e.style.setProperty('--ry','0deg')}})})}
+function renderStudio(d){const box=document.querySelector('#pageStudio');if(!box)return;const blocks=homeBlocks(d);const types={hero:'Hero',split:'Два блока',feature:'Акцент',news:'Новости',text:'Текст',image:'Фото'};box.innerHTML=`<div class="studio-toolbar"><button class="btn" id="studioSave">Сохранить порядок</button><button class="btn secondary" id="studioAddText">+ Текст</button><button class="btn secondary" id="studioAddImage">+ Фото</button><button class="btn secondary" id="studioReset">Сбросить блоки</button></div><div class="studio-list">${blocks.map((b,i)=>`<article class="studio-row" draggable="true" data-i="${i}"><div class="studio-drag">${String(i+1).padStart(2,'0')}</div><div class="studio-fields"><div class="studio-top"><b>${types[b.type]||b.type}</b><label class="switch"><input class="sv" type="checkbox" ${b.visible!==false?'checked':''}><span></span></label></div><div class="studio-grid"><input class="sb-eyebrow" value="${esc(b.eyebrow||'')}"><input class="sb-title" value="${esc(b.title||'')}"><textarea class="sb-text">${esc(b.text||'')}</textarea><input class="sb-image" value="${esc(b.image||b.imageUrl||'')}" placeholder="photo role или URL"><input class="sb-button" value="${esc(b.buttonText||'')}"><input class="sb-href" value="${esc(b.buttonHref||'')}"></div></div><div class="studio-actions"><button class="mini up">↑</button><button class="mini down">↓</button><button class="danger mini remove">Удалить</button></div></article>`).join('')}</div>`;
+ const rows=[...box.querySelectorAll('.studio-row')]; const move=(r,dir)=>{const n=dir<0?r.previousElementSibling:r.nextElementSibling;if(n)dir<0?r.parentNode.insertBefore(r,n):r.parentNode.insertBefore(n,r)};rows.forEach(r=>{r.querySelector('.up').onclick=()=>move(r,-1);r.querySelector('.down').onclick=()=>move(r,1);r.querySelector('.remove').onclick=()=>r.remove()});
+ const collect=()=>[...box.querySelectorAll('.studio-row')].map(r=>{const i=Number(r.dataset.i),old=blocks[i]||{type:r.dataset.type||'text'};return {...old,visible:r.querySelector('.sv').checked,eyebrow:r.querySelector('.sb-eyebrow').value,title:r.querySelector('.sb-title').value,text:r.querySelector('.sb-text').value,image:r.querySelector('.sb-image').value,buttonText:r.querySelector('.sb-button').value,buttonHref:r.querySelector('.sb-href').value}});
+ box.querySelector('#studioSave').onclick=async()=>{try{const n=await getData();n.site.blocks=collect();await saveCloud(n);renderHomeBlocks(n);setMsg('Главная страница сохранена.','ok')}catch(e){setMsg(e.message,'error')}};
+ box.querySelector('#studioAddText').onclick=()=>{const n=box.querySelector('.studio-list'),r=document.createElement('article');r.className='studio-row';r.draggable=true;r.dataset.i=blocks.length;r.dataset.type='text';r.innerHTML=`<div class="studio-drag">+</div><div class="studio-fields"><div class="studio-top"><b>Текст</b><label class="switch"><input class="sv" type="checkbox" checked><span></span></label></div><div class="studio-grid"><input class="sb-eyebrow" value="NEW · NOTE"><input class="sb-title" value="Новый блок"><textarea class="sb-text">Напиши здесь свой текст.</textarea><input class="sb-image" value=""><input class="sb-button" value=""><input class="sb-href" value=""></div></div><div class="studio-actions"><button class="mini up">↑</button><button class="mini down">↓</button><button class="danger mini remove">Удалить</button></div>`;n.appendChild(r);r.querySelector('.up').onclick=()=>move(r,-1);r.querySelector('.down').onclick=()=>move(r,1);r.querySelector('.remove').onclick=()=>r.remove()};
+ box.querySelector('#studioAddImage').onclick=()=>{const n=box.querySelector('.studio-list'),r=document.createElement('article');r.className='studio-row';r.dataset.i=blocks.length;r.dataset.type='text';r.innerHTML=`<div class="studio-drag">+</div><div class="studio-fields"><div class="studio-top"><b>Фото</b><label class="switch"><input class="sv" type="checkbox" checked><span></span></label></div><div class="studio-grid"><input class="sb-eyebrow" value="NEW · IMAGE"><input class="sb-title" value="Новая фотография"><textarea class="sb-text" placeholder="Подпись"></textarea><input class="sb-image" placeholder="URL фото из Media Library"><input class="sb-button"><input class="sb-href"></div></div><div class="studio-actions"><button class="mini up">↑</button><button class="mini down">↓</button><button class="danger mini remove">Удалить</button></div>`;n.appendChild(r);r.querySelector('.up').onclick=()=>move(r,-1);r.querySelector('.down').onclick=()=>move(r,1);r.querySelector('.remove').onclick=()=>r.remove()};
+ box.querySelector('#studioReset').onclick=async()=>{if(!confirm('Вернуть исходную структуру главной?'))return;const n=await getData();n.site.blocks=defaultHomeBlocks();await saveCloud(n);renderStudio(n);renderHomeBlocks(n)}
+}
 
-function renderStatsTable(arr){return arr.map((p,i)=>`<tr><td class="rank-cell">${i+1}</td><td><div class="player-cell"><b>${esc(p[0])}</b><span>${esc(p[1])}</span></div></td><td>${esc(p[2])}</td><td>${p[3]}</td><td>${p[4]}</td><td>${p[5]}</td><td>${p[6]}%</td><td class="gi-cell">${p[7]}</td></tr>`).join('')}
-async function initHome(){const d=await getData();renderHome(d);nav('home')}
-async function initForecast(){const d=await getData();const vals={mvp:d.forecast.mvp,dpoy:d.forecast.dpoy,roy:d.forecast.roy,mip:d.forecast.mip,champion:d.forecast.champion,confidence:d.forecast.confidence,forecastText:d.forecast.text};for(const[id,v]of Object.entries(vals)){const e=document.getElementById(id);if(e)e.textContent=v}renderPageBlocks(d,'forecast');nav('forecast')}
-async function initStats(){const d=await getData(),body=document.querySelector('#statsBody');if(body){const search=document.querySelector('#search'),pos=document.querySelector('#pos'),sort=document.querySelector('#sort');const draw=()=>{const q=(search?.value||'').toLowerCase(),p=pos?.value||'all',s=sort?.value||'gi',idx={gi:7,pts:3,reb:4,ast:5,ts:6}[s];const a=d.players.filter(x=>String(x[0]).toLowerCase().includes(q)&&(p==='all'||x[2]===p)).slice().sort((a,b)=>b[idx]-a[idx]);body.innerHTML=renderStatsTable(a)};search&&(search.oninput=draw);pos&&(pos.onchange=draw);sort&&(sort.onchange=draw);draw()}const im=document.querySelector('#statsImage');if(im)im.src=asset(d,'stats','nba-4.jpg');renderPageBlocks(d,'stats');nav('stats')}
-async function initGI(){const d=await getData(),body=document.querySelector('#giBody');if(body)body.innerHTML=renderStatsTable(d.players.slice().sort((a,b)=>b[7]-a[7]));const t=document.querySelector('#giText');if(t)t.textContent=d.gi.text;const title=document.querySelector('#giTitle');if(title)title.textContent=d.gi.title;const im=document.querySelector('#giImage');if(im)im.src=asset(d,'gi','nba-2.jpg');renderPageBlocks(d,'gi');nav('gi')}
-async function initGoat(){const d=await getData(),el=document.querySelector('#goatBody');if(el)el.innerHTML=d.goat.map((p,i)=>`<div class="rank-row"><span class="rank">${String(i+1).padStart(2,'0')}</span><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div><strong>${Number(p[2]).toFixed(2)}</strong></div>`).join('');const im=document.querySelector('#goatImage');if(im)im.src=asset(d,'goat','nba-3.jpg');renderPageBlocks(d,'goat');nav('goat')}
-async function initForum(){const d=await getData();renderPageBlocks(d,'forum');nav('forum')}
-async function initNews(){const d=await getData(),el=document.querySelector('#newsGrid');if(el)el.innerHTML=d.news.map(n=>`<article class="news-card cs-3d"><img src="${esc(asset(d,n.image,'nba-2.jpg'))}" alt=""><span>${esc(n.tag)}</span><h3>${esc(n.title)}</h3><p>${esc(n.text)}</p></article>`).join('');if(el){bind3D(el);reveal(el)}renderPageBlocks(d,'news');nav('news')}
-async function initCompare(){const d=await getData(),a=document.querySelector('#compareA'),b=document.querySelector('#compareB'),o=document.querySelector('#compareResult');if(!a||!b||!o)return;const opts=d.players.map((p,i)=>`<option value="${i}">${esc(p[0])} · GI ${p[7]}</option>`).join('');a.innerHTML=opts;b.innerHTML=opts;b.selectedIndex=Math.min(1,d.players.length-1);const draw=()=>{const A=d.players[+a.value],B=d.players[+b.value],g=A[7]-B[7];o.innerHTML=`<div class="compare-grid"><article class="compare-card ${g>=0?'winner':''}"><small>A</small><h2>${esc(A[0])}</h2><span>${A[1]} · ${A[2]}</span><strong>${A[7]}</strong><em>GOAT INDEX</em><div class="meter"><i style="width:${Math.min(100,Math.max(0,A[7]))}%"></i></div></article><div class="compare-gap"><small>GI GAP</small><b>${g>0?'+':''}${g.toFixed(1)}</b><span>${g===0?'равно':g>0?esc(A[0])+' выше':esc(B[0])+' выше'}</span></div><article class="compare-card ${g<0?'winner':''}"><small>B</small><h2>${esc(B[0])}</h2><span>${B[1]} · ${B[2]}</span><strong>${B[7]}</strong><em>GOAT INDEX</em><div class="meter"><i style="width:${Math.min(100,Math.max(0,B[7]))}%"></i></div></article></div><div class="compare-metrics">${[['PTS',A[3],B[3]],['REB',A[4],B[4]],['AST',A[5],B[5]],['TS%',A[6]+'%',B[6]+'%']].map(x=>`<div class="compare-metric"><span>${x[0]}</span><b>${x[1]}</b><i></i><b>${x[2]}</b></div>`).join('')}</div>`};a.onchange=b.onchange=draw;draw();renderPageBlocks(d,'compare');nav('compare')}
-async function initInsights(){const d=await getData(),l=document.querySelector('#giLeaders'),g=document.querySelector('#efficiencyGap'),t=document.querySelector('#insightText');if(l){const top=d.players.slice().sort((a,b)=>b[7]-a[7]).slice(0,8);l.innerHTML=top.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${p[7]}</strong></div>`).join('')}if(g){const gap=d.players.slice().sort((a,b)=>(b[3]-b[7])-(a[3]-a[7])).slice(0,8);g.innerHTML=gap.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${(p[3]-p[7]).toFixed(1)}</strong></div>`).join('')}if(t&&d.players[0])t.textContent=`${d.players.slice().sort((a,b)=>b[7]-a[7])[0][0]} возглавляет текущую таблицу GI. Insights показывает не только лидеров, но и расхождения между объёмом статистики и общей оценкой.`;renderPageBlocks(d,'insights');nav('insights')}
+async function initHome(){
+  const d=await getData();
+  const canvas=document.querySelector('#homeCanvas');
+  if(canvas){renderHomeBlocks(d);nav('home');return;}
+  const h=document.querySelector('#headline'), intro=document.querySelector('#intro'), hero=document.querySelector('#heroImage');
+  if(h) h.innerHTML=esc(d.site.headline).replace(/\n/g,'<br>');
+  if(intro) intro.textContent=d.site.intro;
+  if(hero) hero.src=d.photos.hero || 'nba-1.jpg';
+  document.querySelectorAll('[data-season]').forEach(e=>e.textContent=d.site.season);
+  nav('home');
+}
+async function initForecast(){
+  const d=await getData();
+  const vals={mvp:d.forecast.mvp,dpoy:d.forecast.dpoy,roy:d.forecast.roy,mip:d.forecast.mip,champion:d.forecast.champion,confidence:d.forecast.confidence,forecastText:d.forecast.text};
+  for(const [id,val] of Object.entries(vals)){const e=document.querySelector('#'+id);if(e)e.textContent=val;}
+  nav('forecast');
+}
+async function initStats(){
+  const d=await getData(), body=document.querySelector('#statsBody'); if(!body)return;
+  const search=document.querySelector('#search'), pos=document.querySelector('#pos'), sort=document.querySelector('#sort');
+  function draw(){
+    const q=(search.value||'').toLowerCase(), p=pos.value, s=sort.value;
+    const idx={gi:7,pts:3,reb:4,ast:5,ts:6}[s];
+    let a=d.players.filter(x=>x[0].toLowerCase().includes(q)&&(p==='all'||x[2]===p)).slice().sort((a,b)=>b[idx]-a[idx]);
+    body.innerHTML=renderStatsTable(a);
+  }
+  search.oninput=draw; pos.onchange=sort.onchange=draw; draw(); nav('stats');
+  const im=document.querySelector('#statsImage'); if(im) im.src=d.photos.stats||'nba-4.jpg';
+}
+async function initGI(){
+  const d=await getData(), body=document.querySelector('#giBody');
+  if(body) body.innerHTML=renderStatsTable(d.players.slice().sort((a,b)=>b[7]-a[7]));
+  const t=document.querySelector('#giText'); if(t)t.textContent=d.gi.text;
+  const title=document.querySelector('#giTitle'); if(title)title.textContent=d.gi.title;
+  const im=document.querySelector('#giImage'); if(im)im.src=d.photos.gi||'nba-2.jpg';
+  nav('gi');
+}
+async function initGoat(){
+  const d=await getData(), el=document.querySelector('#goatBody');
+  if(el)el.innerHTML=d.goat.map((p,i)=>`<div class="rank-row"><span class="rank">${String(i+1).padStart(2,'0')}</span><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div><strong>${p[2]}</strong></div>`).join('');
+  const im=document.querySelector('#goatImage');if(im)im.src=d.photos.goat||'nba-3.jpg'; nav('goat');
+}
+async function initNews(){
+  const d=await getData(), el=document.querySelector('#newsGrid');if(!el)return;
+  el.innerHTML=d.news.map((n,i)=>`<article class="news-card"><img src="${esc(/^https?:\/\//i.test(String(n.image||''))?n.image:(d.photos?.[n.image]||n.image||'nba-1.jpg'))}" alt=""><span>${esc(n.tag)}</span><h3>${esc(n.title)}</h3><p>${esc(n.text)}</p></article>`).join('');
+  nav('news');
+}
+function setMsg(text,type='',target='adminMsg'){
+  const e=document.querySelector('#'+target);
+  if(e){e.textContent=text;e.className='msg '+type;}
+}
 
-function setMsg(text,type='',target='adminMsg'){const e=document.querySelector('#'+target);if(e){e.textContent=text;e.className='msg '+type}}
-function fillEditor(d){const map={e_siteHeadline:d.site.headline,e_siteIntro:d.site.intro,e_season:d.site.season,e_model:d.site.model,e_mvp:d.forecast.mvp,e_dpoy:d.forecast.dpoy,e_roy:d.forecast.roy,e_mip:d.forecast.mip,e_champion:d.forecast.champion,e_confidence:d.forecast.confidence,e_forecastText:d.forecast.text,e_giTitle:d.gi.title,e_giText:d.gi.text};Object.entries(map).forEach(([id,v])=>{const e=document.getElementById(id);if(e)e.value=v});renderPlayerEditor(d.players);renderGoatEditor(d.goat);renderNewsEditor(d.news);renderPageStudio(d,'home');refreshMediaLibrary()}
-function input(v,cls=''){return `<input class="${cls}" value="${esc(v)}">`}
-function renderPlayerEditor(players){const el=document.querySelector('#playerEditor');if(!el)return;el.innerHTML=`<div class="editor-table"><table><thead><tr><th>#</th><th>Игрок</th><th>Команда</th><th>Поз.</th><th>PTS</th><th>REB</th><th>AST</th><th>TS%</th><th>GI</th><th></th></tr></thead><tbody>${players.map((p,i)=>`<tr><td>${i+1}</td><td>${input(p[0])}</td><td>${input(p[1])}</td><td>${input(p[2])}</td><td>${input(p[3])}</td><td>${input(p[4])}</td><td>${input(p[5])}</td><td>${input(p[6])}</td><td>${input(p[7])}</td><td><button class="danger mini del-player">Удалить</button></td></tr>`).join('')}</tbody></table></div><button class="btn secondary" id="addPlayer">+ Добавить игрока</button>`;el.querySelectorAll('.del-player').forEach(b=>b.onclick=()=>b.closest('tr').remove());el.querySelector('#addPlayer').onclick=()=>{const tr=document.createElement('tr');tr.innerHTML=`<td>*</td><td>${input('New Player')}</td><td>${input('TEAM')}</td><td>${input('G')}</td><td>${input(0)}</td><td>${input(0)}</td><td>${input(0)}</td><td>${input(0)}</td><td>${input(0)}</td><td><button class="danger mini del-player">Удалить</button></td>`;tr.querySelector('.del-player').onclick=()=>tr.remove();el.querySelector('tbody').appendChild(tr)}}
-function collectPlayers(){return [...document.querySelectorAll('#playerEditor tbody tr')].map(r=>{const v=[...r.querySelectorAll('input')].map(x=>x.value.trim());return [v[0],v[1],v[2],...v.slice(3).map(Number)]})}
-function renderGoatEditor(goat){const el=document.querySelector('#goatEditor');if(!el)return;el.innerHTML=`<div class="editor-list">${goat.map((p,i)=>`<div class="edit-row"><span class="drag-rank">${i+1}</span>${input(p[0])}${input(p[1])}${input(p[2])}<button class="danger mini del-goat">Удалить</button></div>`).join('')}</div><button class="btn secondary" id="addGoat">+ Добавить</button>`;el.querySelectorAll('.del-goat').forEach(b=>b.onclick=()=>b.closest('.edit-row').remove());el.querySelector('#addGoat').onclick=()=>{const r=document.createElement('div');r.className='edit-row';r.innerHTML=`<span class="drag-rank">+</span>${input('Player')}${input('TEAM')}${input(0)}<button class="danger mini del-goat">Удалить</button>`;r.querySelector('.del-goat').onclick=()=>r.remove();el.querySelector('.editor-list').appendChild(r)}}
-function collectGoat(){return [...document.querySelectorAll('#goatEditor .edit-row')].map(r=>[...r.querySelectorAll('input')].map(x=>x.value.trim()))}
-function renderNewsEditor(news){const el=document.querySelector('#newsEditor');if(!el)return;el.innerHTML=news.map((n,i)=>`<div class="news-edit"><div class="news-edit-head"><b>Новость ${i+1}</b><button class="danger mini del-news">Удалить</button></div><div class="edit-grid"><div class="field"><label>Заголовок</label><input class="n-title" value="${esc(n.title)}"></div><div class="field"><label>Категория</label><input class="n-tag" value="${esc(n.tag)}"></div><div class="field full"><label>Текст</label><textarea class="n-text">${esc(n.text)}</textarea></div><div class="field full"><label>URL изображения</label><input class="n-image" value="${esc(n.image||'')}" placeholder="URL из Media Library"></div><div class="field"><label>Загрузить новое</label><input class="n-file" type="file" accept="image/*"></div></div></div>`).join('')+`<button class="btn secondary" id="addNews">+ Добавить новость</button>`;el.querySelectorAll('.del-news').forEach(b=>b.onclick=()=>b.closest('.news-edit').remove());el.querySelectorAll('.n-file').forEach(i=>i.onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const u=await uploadImage(f,'news');i.closest('.news-edit').querySelector('.n-image').value=u;setMsg('Фото загружено. Сохрани изменения.','ok')}catch(err){setMsg(err.message,'error')}});el.querySelector('#addNews').onclick=()=>{const n=document.createElement('div');n.className='news-edit';n.innerHTML=`<div class="news-edit-head"><b>Новая новость</b><button class="danger mini del-news">Удалить</button></div><div class="edit-grid"><div class="field"><label>Заголовок</label><input class="n-title"></div><div class="field"><label>Категория</label><input class="n-tag" value="NEWS"></div><div class="field full"><label>Текст</label><textarea class="n-text"></textarea></div><div class="field full"><label>URL изображения</label><input class="n-image"></div><div class="field"><label>Загрузить</label><input class="n-file" type="file" accept="image/*"></div></div>`;n.querySelector('.del-news').onclick=()=>n.remove();n.querySelector('.n-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{n.querySelector('.n-image').value=await uploadImage(f,'news');setMsg('Фото загружено.','ok')}catch(err){setMsg(err.message,'error')}};el.insertBefore(n,el.querySelector('#addNews'))}}
-function collectNews(){return [...document.querySelectorAll('#newsEditor .news-edit')].map(r=>({title:r.querySelector('.n-title').value.trim(),tag:r.querySelector('.n-tag').value.trim(),text:r.querySelector('.n-text').value.trim(),image:r.querySelector('.n-image').value.trim()}))}
-function collectBase(d){d.site.headline=document.querySelector('#e_siteHeadline').value;d.site.intro=document.querySelector('#e_siteIntro').value;d.site.season=document.querySelector('#e_season').value;d.site.model=document.querySelector('#e_model').value;d.forecast.mvp=document.querySelector('#e_mvp').value;d.forecast.dpoy=document.querySelector('#e_dpoy').value;d.forecast.roy=document.querySelector('#e_roy').value;d.forecast.mip=document.querySelector('#e_mip').value;d.forecast.champion=document.querySelector('#e_champion').value;d.forecast.confidence=Number(document.querySelector('#e_confidence').value)||0;d.forecast.text=document.querySelector('#e_forecastText').value;d.gi.title=document.querySelector('#e_giTitle').value;d.gi.text=document.querySelector('#e_giText').value;return d}
-
-let STUDIO_PAGE='home';
-function studioBlockRow(b,i){const types={text:'Текст',image:'Фото',quote:'Цитата',split:'Два блока',stats:'Статистика'};return `<article class="studio-row" draggable="true" data-index="${i}"><div class="studio-handle">⠿<small>${String(i+1).padStart(2,'0')}</small></div><div class="studio-fields"><div class="studio-top"><b>${types[b.type]||'Блок'}</b><label class="switch"><input class="sv" type="checkbox" ${b.visible!==false?'checked':''}><span></span></label></div><div class="studio-grid"><input class="sb-eyebrow" value="${esc(b.eyebrow||'')}" placeholder="Eyebrow"><input class="sb-title" value="${esc(b.title||'')}" placeholder="Заголовок"><textarea class="sb-text" placeholder="Текст">${esc(b.text||'')}</textarea><input class="sb-image" value="${esc(b.image||'')}" placeholder="Роль фото: gi / goat / stats / hero или URL"><input class="sb-button" value="${esc(b.buttonText||'')}" placeholder="Текст кнопки"><input class="sb-href" value="${esc(b.buttonHref||'')}" placeholder="Ссылка"></div></div><div class="studio-actions"><button class="mini up">↑</button><button class="mini down">↓</button><button class="danger mini remove">Удалить</button></div></article>`}
-function renderPageStudio(d,page){const box=document.querySelector('#pageStudio');if(!box)return;STUDIO_PAGE=page;const blocks=page==='home'?homeBlocks(d):pageBlocks(d,page);box.innerHTML=`<div class="studio-toolbar"><select id="studioPage"><option value="home">Главная</option>${Object.entries(PAGE_NAMES).filter(([k])=>k!=='home').map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><button class="btn" id="studioSave">Опубликовать</button><button class="btn secondary" id="studioPreview">Предпросмотр</button><button class="btn secondary" id="studioAddText">+ Текст</button><button class="btn secondary" id="studioAddImage">+ Фото</button><button class="btn secondary" id="studioAddQuote">+ Цитата</button></div><p class="studio-hint">Перетаскивай карточки за точку ⠿. Все блоки ниже относятся к выбранной странице.</p><div class="studio-list">${blocks.map(studioBlockRow).join('')}</div>`;box.querySelector('#studioPage').value=page;box.querySelector('#studioPage').onchange=async e=>{const n=await getData();renderPageStudio(n,e.target.value)};const list=box.querySelector('.studio-list');let drag=null;list.querySelectorAll('.studio-row').forEach(row=>{row.addEventListener('dragstart',()=>{drag=row;row.classList.add('dragging')});row.addEventListener('dragend',()=>{drag=null;row.classList.remove('dragging')});row.addEventListener('dragover',e=>{e.preventDefault();if(drag&&drag!==row){const r=row.getBoundingClientRect();const after=e.clientY>r.top+r.height/2;list.insertBefore(drag,after?row.nextSibling:row)}});row.querySelector('.up').onclick=()=>{if(row.previousElementSibling)list.insertBefore(row,row.previousElementSibling)};row.querySelector('.down').onclick=()=>{if(row.nextElementSibling)list.insertBefore(row.nextElementSibling,row)};row.querySelector('.remove').onclick=()=>row.remove()});const collect=()=>[...list.querySelectorAll('.studio-row')].map(r=>{const old=blocks[Number(r.dataset.index)]||{};return {...old,visible:r.querySelector('.sv').checked,eyebrow:r.querySelector('.sb-eyebrow').value,title:r.querySelector('.sb-title').value,text:r.querySelector('.sb-text').value,image:r.querySelector('.sb-image').value,buttonText:r.querySelector('.sb-button').value,buttonHref:r.querySelector('.sb-href').value}});box.querySelector('#studioSave').onclick=async()=>{try{const n=await getData();const v=collect();if(page==='home')n.site.blocks=v;else{n.pages=n.pages||{};n.pages[page]=v}await saveCloud(n);setMsg('Опубликовано. Изменения видны всем посетителям.','ok');renderPageStudio(n,page)}catch(e){setMsg(e.message,'error')}};const add=(type,title,eyebrow)=>{const n=list.children.length;const r=document.createElement('article');r.className='studio-row';r.draggable=true;r.dataset.index='-1';r.innerHTML=studioBlockRow({type,visible:true,title,eyebrow,text:type==='quote'?'Напиши цитату.':'Новый блок.'},n);list.appendChild(r);r.querySelector('.up').onclick=()=>{if(r.previousElementSibling)list.insertBefore(r,r.previousElementSibling)};r.querySelector('.down').onclick=()=>{if(r.nextElementSibling)list.insertBefore(r.nextElementSibling,r)};r.querySelector('.remove').onclick=()=>r.remove()};box.querySelector('#studioAddText').onclick=()=>add('text','Новый блок','NEW · NOTE');box.querySelector('#studioAddImage').onclick=()=>add('image','Новая фотография','NEW · IMAGE');box.querySelector('#studioAddQuote').onclick=()=>add('quote','Новая цитата','NEW · NOTE');box.querySelector('#studioPreview').onclick=()=>previewStudio(collect(),page)}
-function previewStudio(blocks,page){const d=localData();const html=`<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>COURTSIDE Preview</title><link rel="stylesheet" href="style.css"></head><body><main class="page"><div class="wrap"><div class="preview-badge">PREVIEW · ${esc(PAGE_NAMES[page]||page)}</div>${renderBlocks(d,blocks)}</div></main><script>document.querySelectorAll('.cs-reveal').forEach(e=>e.classList.add('cs-in'))</script></body></html>`;const w=window.open('','_blank');if(w){w.document.write(html);w.document.close()}}
-async function uploadImage(file,slot='media'){const sb=await ensureSupabase();if(!sb)throw new Error('Supabase не настроен.');const {data:{user}}=await sb.auth.getUser();if(!user)throw new Error('Сначала войди.');const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';const path=`${String(slot).replace(/[^a-z0-9_-]/gi,'-')}-${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`;const {error}=await sb.storage.from('site-images').upload(path,file,{upsert:false,contentType:file.type||'image/jpeg',cacheControl:'3600'});if(error)throw error;return sb.storage.from('site-images').getPublicUrl(path).data.publicUrl}
-async function listMediaLibrary(){const sb=await ensureSupabase();if(!sb)throw new Error('Supabase не настроен.');const {data,error}=await sb.storage.from('site-images').list('',{limit:1000,sortBy:{column:'created_at',order:'desc'}});if(error)throw error;return(data||[]).filter(x=>x.name&&!x.name.endsWith('/')).map(x=>({name:x.name,path:x.name,url:sb.storage.from('site-images').getPublicUrl(x.name).data.publicUrl,size:x.metadata?.size||0,created_at:x.created_at||''}))}
-async function deleteMediaImage(path){const sb=await ensureSupabase();if(!(await isAdmin()))throw new Error('Нет прав администратора.');const {error}=await sb.storage.from('site-images').remove([path]);if(error)throw error}
-async function refreshMediaLibrary(){const grid=document.querySelector('#mediaLibraryGrid');if(!grid)return;grid.innerHTML='<div class="media-loading">Загрузка медиатеки…</div>';try{const files=await listMediaLibrary(),d=await getData(),photos=d.photos||{},gallery=d.gallery||[];const role=u=>Object.entries(photos).filter(([,v])=>v===u).map(([k])=>k.toUpperCase()).join(' · ');grid.innerHTML=files.length?files.map(f=>{const r=role(f.url),g=gallery.some(x=>x.image===f.url);return `<article class="media-item" data-path="${esc(f.path)}" data-url="${esc(f.url)}"><div class="media-thumb"><img src="${esc(f.url)}" alt=""><span class="media-badge">${r||'MEDIA'}</span></div><div class="media-meta"><b title="${esc(f.name)}">${esc(f.name)}</b><small>${f.size?Math.max(1,Math.round(f.size/1024))+' KB':''} · ${g?'В галерее':'Не назначено'}</small></div><div class="media-actions"><button data-role="hero">Hero</button><button data-role="gi">GI</button><button data-role="goat">GOAT</button><button data-role="stats">Stats</button><button data-copy="1">Копировать URL</button><button data-gallery="1">${g?'Убрать':'В галерею'}</button><button class="media-delete" data-delete="1">Удалить</button></div></article>`}).join(''):'<div class="media-empty"><strong>Медиатека пуста.</strong><span>Загрузи любое количество фотографий.</span></div>';grid.querySelectorAll('[data-role]').forEach(b=>b.onclick=async()=>{try{const n=await getData();n.photos[b.dataset.role]=b.closest('.media-item').dataset.url;await saveCloud(n);await refreshMediaLibrary();setMsg('Фото назначено и опубликовано.','ok')}catch(e){setMsg(e.message,'error')}});grid.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.closest('.media-item').dataset.url);setMsg('URL скопирован.','ok')}catch{setMsg('Не удалось скопировать URL.','error')}});grid.querySelectorAll('[data-gallery]').forEach(b=>b.onclick=async()=>{try{const item=b.closest('.media-item'),n=await getData();n.gallery=n.gallery||[];const i=n.gallery.findIndex(x=>x.image===item.dataset.url);if(i>=0)n.gallery.splice(i,1);else n.gallery.unshift({title:item.querySelector('.media-meta b').textContent,caption:'',image:item.dataset.url});await saveCloud(n);refreshMediaLibrary();setMsg(i>=0?'Убрано из галереи.':'Добавлено в галерею.','ok')}catch(e){setMsg(e.message,'error')}});grid.querySelectorAll('[data-delete]').forEach(b=>b.onclick=async()=>{if(!confirm('Удалить изображение?'))return;try{const item=b.closest('.media-item'),n=await getData();Object.keys(n.photos||{}).forEach(k=>{if(n.photos[k]===item.dataset.url)n.photos[k]=''});n.gallery=(n.gallery||[]).filter(x=>x.image!==item.dataset.url);await deleteMediaImage(item.dataset.path);await saveCloud(n);refreshMediaLibrary();setMsg('Изображение удалено.','ok')}catch(e){setMsg(e.message,'error')}})}catch(e){grid.innerHTML=`<div class="media-empty"><strong>Медиатека недоступна.</strong><span>${esc(e.message)}</span></div>`;setMsg(e.message,'error')}}
-function bindAdmin(){document.querySelector('#logout')?.addEventListener('click',async()=>{await SB.auth.signOut();location.reload()});document.querySelector('#saveAll')?.addEventListener('click',async()=>{try{const d=collectBase(await getData());d.players=collectPlayers();d.goat=collectGoat();d.news=collectNews();await saveCloud(d);setMsg('Сохранено и опубликовано.','ok')}catch(e){setMsg(e.message,'error')}});document.querySelector('#mediaUpload')?.addEventListener('change',async e=>{const fs=[...e.target.files];let ok=0;for(const f of fs){try{await uploadImage(f,'media');ok++}catch(err){setMsg(`${f.name}: ${err.message}`,'error')}}e.target.value='';await refreshMediaLibrary();if(ok)setMsg(`Загружено: ${ok} ${ok===1?'фото':'фотографий'}.`,'ok')});document.querySelector('#mediaRefresh')?.addEventListener('click',refreshMediaLibrary);const drop=document.querySelector('#mediaDrop');if(drop){['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('dragover')}));['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('dragover') }));drop.addEventListener('drop',async e=>{const fs=[...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'));for(const f of fs){try{await uploadImage(f,'media')}catch(err){setMsg(err.message,'error')}}await refreshMediaLibrary();setMsg(`Загружено: ${fs.length} фото.`,'ok')})}document.querySelectorAll('.role-file').forEach(input=>input.addEventListener('change',async e=>{const f=e.target.files[0],role=input.dataset.role;if(!f)return;try{const u=await uploadImage(f,role);const d=await getData();d.photos[role]=u;await saveCloud(d);document.querySelector(`#prev_${role}`).src=u;await refreshMediaLibrary();setMsg('Фото назначено.','ok')}catch(err){setMsg(err.message,'error')}}));}
-async function initEditor(){nav('editor');const login=document.querySelector('#loginPanel'),dash=document.querySelector('#dashboard'),userLine=document.querySelector('#userLine');const sb=await ensureSupabase();if(!sb){login.style.display='block';dash.style.display='none';setMsg('Supabase не настроен.','error','loginMsg');return}const {data:{session}}=await sb.auth.getSession();if(!session){login.style.display='block';dash.style.display='none';bindLogin();return}if(!(await isAdmin())){login.style.display='block';dash.style.display='none';setMsg('Этот аккаунт не является администратором.','error','loginMsg');return}login.style.display='none';dash.style.display='block';userLine.textContent=session.user.email;bindAdmin();const d=await getData();fillEditor(d)}
-function bindLogin(){const form=document.querySelector('#loginForm');if(!form)return;form.onsubmit=async e=>{e.preventDefault();setMsg('Вход…','','loginMsg');try{const sb=await ensureSupabase();const {error}=await sb.auth.signInWithPassword({email:document.querySelector('#loginEmail').value.trim(),password:document.querySelector('#loginPassword').value});if(error)throw error;location.reload()}catch(err){setMsg(err.message,'error','loginMsg')}}}
-async function startPage(kind){try{if(kind==='home')return await initHome();if(kind==='forecast')return await initForecast();if(kind==='stats')return await initStats();if(kind==='gi')return await initGI();if(kind==='goat')return await initGoat();if(kind==='news')return await initNews();if(kind==='forum')return await initForum();if(kind==='compare')return await initCompare();if(kind==='insights')return await initInsights();if(kind==='editor')return await initEditor();}catch(e){console.error('COURTSIDE page error:',e);const root=document.querySelector('#homeCanvas,#pageCanvas');if(root&&kind==='home')root.innerHTML=`<section class="error-panel"><div class="eyebrow">COURTSIDE · FALLBACK</div><h1>Страница загрузилась, данные нет.</h1><p>Показываю локальную копию, пока облако недоступно.</p></section>`;}}
-window.startPage=startPage;
+async function initEditor(){
+  nav('editor');
+  const login=document.querySelector('#loginPanel'), dash=document.querySelector('#dashboard'), userLine=document.querySelector('#userLine');
+  const sb=await ensureSupabase();
+  if(!sb){
+    login.style.display='block'; dash.style.display='none';
+    setMsg('Сначала заполни config.js: URL и Publishable key проекта Supabase.','error','loginMsg');
+    return;
+  }
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){login.style.display='block';dash.style.display='none';bindLogin();return;}
+  if(!(await isAdmin())){login.style.display='block';dash.style.display='none';setMsg('Вход выполнен, но этот аккаунт не является администратором.','error','loginMsg');return;}
+  login.style.display='none';dash.style.display='block';userLine.textContent=session.user.email;
+  bindAdmin();
+  const content=await getData();
+  fillEditor(content);
+  renderStudio(content);
+}
+function bindLogin(){
+  const form=document.querySelector('#loginForm'); if(!form||form.dataset.bound)return; form.dataset.bound='1';
+  form.onsubmit=async e=>{
+    e.preventDefault(); setMsg('Выполняю вход…','','loginMsg');
+    try{
+      const sb=await ensureSupabase();
+      const email=document.querySelector('#loginEmail').value.trim(), password=document.querySelector('#loginPassword').value;
+      const {error}=await sb.auth.signInWithPassword({email,password});
+      if(error) throw error;
+      location.reload();
+    }catch(err){setMsg(err.message||'Ошибка входа','error','loginMsg');}
+  };
+}
+function fillEditor(d){
+  const map={e_siteHeadline:d.site.headline,e_siteIntro:d.site.intro,e_season:d.site.season,e_model:d.site.model,e_mvp:d.forecast.mvp,e_dpoy:d.forecast.dpoy,e_roy:d.forecast.roy,e_mip:d.forecast.mip,e_champion:d.forecast.champion,e_confidence:d.forecast.confidence,e_forecastText:d.forecast.text,e_giTitle:d.gi.title,e_giText:d.gi.text};
+  for(const [id,v] of Object.entries(map)){const e=document.getElementById(id);if(e)e.value=v;}
+  renderPlayerEditor(d.players); renderGoatEditor(d.goat); renderNewsEditor(d.news);
+  for(const key of ['hero','gi','goat','stats']){const im=document.getElementById('prev_'+key);if(im)im.src=d.photos[key]||'';}
+}
+function rowInput(value,cls=''){return `<input class="${cls}" value="${esc(value)}">`;}
+function renderPlayerEditor(players){
+  const el=document.querySelector('#playerEditor'); if(!el)return;
+  el.innerHTML=`<div class="editor-table"><table><thead><tr><th>#</th><th>Игрок</th><th>Команда</th><th>Позиция</th><th>PTS</th><th>REB</th><th>AST</th><th>TS%</th><th>GI</th><th></th></tr></thead><tbody>${players.map((p,i)=>`<tr data-i="${i}"><td>${i+1}</td><td>${rowInput(p[0])}</td><td>${rowInput(p[1])}</td><td>${rowInput(p[2])}</td><td>${rowInput(p[3])}</td><td>${rowInput(p[4])}</td><td>${rowInput(p[5])}</td><td>${rowInput(p[6])}</td><td>${rowInput(p[7])}</td><td><button class="danger mini del-player">Удалить</button></td></tr>`).join('')}</tbody></table></div><button class="btn secondary" id="addPlayer">+ Добавить игрока</button>`;
+  el.querySelectorAll('.del-player').forEach(b=>b.onclick=()=>{b.closest('tr').remove();renumber(el,'player')});
+  el.querySelector('#addPlayer').onclick=()=>{const tb=el.querySelector('tbody');const i=tb.rows.length;const tr=document.createElement('tr');tr.dataset.i=i;tr.innerHTML=`<td>${i+1}</td><td>${rowInput('New Player')}</td><td>${rowInput('TEAM')}</td><td>${rowInput('G')}</td><td>${rowInput(0)}</td><td>${rowInput(0)}</td><td>${rowInput(0)}</td><td>${rowInput(0)}</td><td>${rowInput(0)}</td><td><button class="danger mini del-player">Удалить</button></td>`;tb.appendChild(tr);tr.querySelector('.del-player').onclick=()=>{tr.remove();renumber(el,'player')};};
+}
+function renumber(el){[...el.querySelectorAll('tbody tr')].forEach((tr,i)=>tr.querySelector('td').textContent=i+1);}
+function collectPlayers(){
+  return [...document.querySelectorAll('#playerEditor tbody tr')].map(tr=>{
+    const v=[...tr.querySelectorAll('input')].map(x=>x.value.trim());
+    return [v[0],v[1],v[2],Number(v[3])||0,Number(v[4])||0,Number(v[5])||0,Number(v[6])||0,Number(v[7])||0];
+  });
+}
+function renderGoatEditor(goat){
+  const el=document.querySelector('#goatEditor');if(!el)return;
+  el.innerHTML=`<div class="editor-list">${goat.map((p,i)=>`<div class="edit-row" data-i="${i}"><span class="drag-rank">${i+1}</span>${rowInput(p[0])}${rowInput(p[1])}${rowInput(p[2])}<button class="danger mini del-goat">Удалить</button></div>`).join('')}</div><button class="btn secondary" id="addGoat">+ Добавить</button>`;
+  el.querySelectorAll('.del-goat').forEach(b=>b.onclick=()=>b.closest('.edit-row').remove());
+  el.querySelector('#addGoat').onclick=()=>{const r=document.createElement('div');r.className='edit-row';r.innerHTML=`<span class="drag-rank">+</span>${rowInput('Player')}${rowInput('TEAM')}${rowInput(0)}<button class="danger mini del-goat">Удалить</button>`;el.querySelector('.editor-list').appendChild(r);r.querySelector('.del-goat').onclick=()=>r.remove();};
+}
+function collectGoat(){return [...document.querySelectorAll('#goatEditor .edit-row')].map(r=>{const v=[...r.querySelectorAll('input')].map(x=>x.value.trim());return [v[0],v[1],v[2]];});}
+function renderNewsEditor(news){
+  const el=document.querySelector('#newsEditor');if(!el)return;
+  el.innerHTML=news.map((n,i)=>`<div class="news-edit" data-i="${i}"><div class="news-edit-head"><b>Новость ${i+1}</b><button class="danger mini del-news">Удалить</button></div><div class="edit-grid"><div class="field"><label>Заголовок</label><input class="n-title" value="${esc(n.title)}"></div><div class="field"><label>Категория</label><input class="n-tag" value="${esc(n.tag)}"></div><div class="field" style="grid-column:1/-1"><label>Текст</label><textarea class="n-text">${esc(n.text)}</textarea></div><div class="field"><label>URL фотографии</label><input class="n-image" value="${esc(n.image||'')}"></div><div class="field"><label>Загрузить фото</label><input class="n-file" type="file" accept="image/*"></div></div></div>`).join('')+`<button class="btn secondary" id="addNews">+ Добавить новость</button>`;
+  el.querySelectorAll('.del-news').forEach(b=>b.onclick=()=>b.closest('.news-edit').remove());
+  el.querySelectorAll('.n-file').forEach(input=>input.onchange=async e=>{
+    const f=e.target.files[0]; if(!f)return;
+    try{
+      setMsg('Загружаю фотографию новости…');
+      const url=await uploadImage(f,'news');
+      input.closest('.news-edit').querySelector('.n-image').value=url;
+      setMsg('Фото новости загружено. Нажми «Сохранить всё».','ok');
+    }catch(err){setMsg(err.message,'error');}
+  });
+  el.querySelector('#addNews').onclick=()=>{const n=document.createElement('div');n.className='news-edit';n.innerHTML=`<div class="news-edit-head"><b>Новая новость</b><button class="danger mini del-news">Удалить</button></div><div class="edit-grid"><div class="field"><label>Заголовок</label><input class="n-title"></div><div class="field"><label>Категория</label><input class="n-tag" value="NEWS"></div><div class="field" style="grid-column:1/-1"><label>Текст</label><textarea class="n-text"></textarea></div><div class="field"><label>URL фотографии</label><input class="n-image"></div><div class="field"><label>Загрузить фото</label><input class="n-file" type="file" accept="image/*"></div></div>`;el.insertBefore(n,el.querySelector('#addNews'));n.querySelector('.del-news').onclick=()=>n.remove();n.querySelector('.n-file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{setMsg('Загружаю фотографию новости…');const url=await uploadImage(f,'news');n.querySelector('.n-image').value=url;setMsg('Фото новости загружено. Нажми «Сохранить всё».','ok')}catch(err){setMsg(err.message,'error')}};};
+}
+function collectNews(){return [...document.querySelectorAll('#newsEditor .news-edit')].map(r=>({title:r.querySelector('.n-title').value.trim(),tag:r.querySelector('.n-tag').value.trim(),text:r.querySelector('.n-text').value.trim(),image:r.querySelector('.n-image').value.trim()}));}
+function collectBase(d){
+  d.site.headline=document.querySelector('#e_siteHeadline').value;
+  d.site.intro=document.querySelector('#e_siteIntro').value;
+  d.site.season=document.querySelector('#e_season').value;
+  d.site.model=document.querySelector('#e_model').value;
+  d.forecast.mvp=document.querySelector('#e_mvp').value;
+  d.forecast.dpoy=document.querySelector('#e_dpoy').value;
+  d.forecast.roy=document.querySelector('#e_roy').value;
+  d.forecast.mip=document.querySelector('#e_mip').value;
+  d.forecast.champion=document.querySelector('#e_champion').value;
+  d.forecast.confidence=Number(document.querySelector('#e_confidence').value)||0;
+  d.forecast.text=document.querySelector('#e_forecastText').value;
+  d.gi.title=document.querySelector('#e_giTitle').value;
+  d.gi.text=document.querySelector('#e_giText').value;
+  return d;
+}
+function bindAdmin(){
+  document.querySelector('#logout').onclick=async()=>{await SB.auth.signOut();location.reload();};
+  document.querySelector('#saveAll').onclick=async()=>{
+    try{ let d=collectBase(await getData()); d.players=collectPlayers(); d.goat=collectGoat(); d.news=collectNews(); await saveCloud(d); setMsg('Сохранено. Изменения теперь общие для всех посетителей.','ok'); }
+    catch(e){setMsg(e.message,'error');}
+  };
+  for(const key of ['hero','gi','goat','stats']){
+    document.querySelector('#img_'+key).onchange=async e=>{
+      const f=e.target.files[0]; if(!f)return;
+      try{ setMsg(`Загружаю фото: ${key}…`); const url=await uploadImage(f,key); const d=await getData(); d.photos[key]=url; await saveCloud(d); document.querySelector('#prev_'+key).src=url; await refreshMediaLibrary(); setMsg('Фото сохранено и опубликовано для всех.','ok'); }
+      catch(err){setMsg(err.message,'error');}
+    };
+  }
+  document.querySelector('#addNewsImage')?.addEventListener('change',async e=>{
+    const f=e.target.files[0];if(!f)return;
+    try{const url=await uploadImage(f,'news');document.querySelector('#newNewsImageUrl').value=url;await refreshMediaLibrary();setMsg('Фото новости загружено.','ok');}
+    catch(err){setMsg(err.message,'error');}
+  });
+  document.querySelector('#mediaUpload')?.addEventListener('change',async e=>{
+    const files=[...e.target.files]; if(!files.length)return;
+    let ok=0;
+    for(const f of files){try{await uploadImage(f,'media');ok++;}catch(err){setMsg(`${f.name}: ${err.message}`,'error');}}
+    e.target.value=''; await refreshMediaLibrary(); if(ok)setMsg(`Загружено: ${ok} ${ok===1?'файл':'файлов'}.`,'ok');
+  });
+  document.querySelector('#mediaRefresh')?.addEventListener('click',refreshMediaLibrary);
+  refreshMediaLibrary();
+}
+async function refreshMediaLibrary(){
+  const grid=document.querySelector('#mediaLibraryGrid'); if(!grid)return;
+  grid.innerHTML='<div class="media-loading">Загружаю медиатеку…</div>';
+  try{
+    const files=await listMediaLibrary(); const d=await getData(); const photos=d.photos||{}; const gallery=d.gallery||[];
+    const role=(url)=>Object.entries(photos).filter(([,v])=>v===url).map(([k])=>k.toUpperCase()).join(' · ');
+    grid.innerHTML=files.length?files.map(f=>{
+      const r=role(f.url); const inGallery=gallery.some(x=>x.image===f.url);
+      const kb=f.size?Math.max(1,Math.round(f.size/1024))+' KB':'';
+      return `<article class="media-item" data-path="${esc(f.path)}" data-url="${esc(f.url)}"><div class="media-thumb"><img src="${esc(f.url)}" alt=""><span class="media-badge">${r||'MEDIA'}</span></div><div class="media-meta"><b title="${esc(f.name)}">${esc(f.name)}</b><small>${kb} · ${inGallery?'В галерее':'Не назначено'}</small></div><div class="media-actions"><button data-role="hero">Главная</button><button data-role="gi">GI</button><button data-role="goat">GOAT</button><button data-role="stats">Stats</button><button data-gallery="1">${inGallery?'Убрать из галереи':'В галерею'}</button><button class="media-delete" data-delete="1">Удалить</button></div></article>`;
+    }).join(''):'<div class="media-empty"><strong>Медиатека пока пуста.</strong><span>Загрузи первую фотографию выше.</span></div>';
+    grid.querySelectorAll('[data-role]').forEach(btn=>btn.onclick=async()=>{try{const item=btn.closest('.media-item'),d=await getData();d.photos[btn.dataset.role]=item.dataset.url;await saveCloud(d);await refreshMediaLibrary();setMsg(`Фото назначено: ${btn.dataset.role}.`,'ok')}catch(e){setMsg(e.message,'error')}});
+    grid.querySelectorAll('[data-gallery]').forEach(btn=>btn.onclick=async()=>{try{const item=btn.closest('.media-item'),d=await getData();d.gallery=Array.isArray(d.gallery)?d.gallery:[];const ix=d.gallery.findIndex(x=>x.image===item.dataset.url);if(ix>=0)d.gallery.splice(ix,1);else d.gallery.unshift({title:item.querySelector('.media-meta b').textContent,caption:'',image:item.dataset.url});await saveCloud(d);await refreshMediaLibrary();setMsg(ix>=0?'Убрано из галереи.':'Добавлено в галерею.','ok')}catch(e){setMsg(e.message,'error')}});
+    grid.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=async()=>{if(!confirm('Удалить это изображение из Supabase Storage?'))return;try{const item=btn.closest('.media-item'),d=await getData();for(const k of Object.keys(d.photos||{}))if(d.photos[k]===item.dataset.url)d.photos[k]='';d.gallery=(d.gallery||[]).filter(x=>x.image!==item.dataset.url);await deleteMediaImage(item.dataset.path);await saveCloud(d);await refreshMediaLibrary();setMsg('Изображение удалено.','ok')}catch(e){setMsg(e.message,'error')}});
+  }catch(e){grid.innerHTML=`<div class="media-empty"><strong>Не удалось загрузить медиатеку.</strong><span>${esc(e.message)}</span></div>`;setMsg(e.message,'error')}
+}
+async function initCompare(){
+  const d=await getData(),a=document.querySelector('#compareA'),b=document.querySelector('#compareB'),o=document.querySelector('#compareResult');
+  if(!a||!b||!o)return; const players=d.players||[];
+  const opts=players.map((p,i)=>`<option value="${i}">${esc(p[0])} · GI ${p[7]}</option>`).join(''); a.innerHTML=opts;b.innerHTML=opts;if(players.length>1)b.selectedIndex=1;
+  const draw=()=>{const A=players[+a.value],B=players[+b.value];if(!A||!B)return;const g=A[7]-B[7];o.innerHTML=`<div class="compare-grid"><article class="compare-card ${g>=0?'winner':''} cs-3d"><small>A</small><h2>${esc(A[0])}</h2><span>${esc(A[1])} · ${esc(A[2])}</span><strong>${A[7]}</strong><em>GI</em><div class="meter"><i style="width:${Math.min(100,Number(A[7])||0)}%"></i></div></article><div class="compare-gap"><small>GI GAP</small><b>${g>0?'+':''}${g.toFixed(1)}</b><span>${g===0?'равно':g>0?esc(A[0])+' выше':esc(B[0])+' выше'}</span></div><article class="compare-card ${g<0?'winner':''} cs-3d"><small>B</small><h2>${esc(B[0])}</h2><span>${esc(B[1])} · ${esc(B[2])}</span><strong>${B[7]}</strong><em>GI</em><div class="meter"><i style="width:${Math.min(100,Number(B[7])||0)}%"></i></div></article></div><div class="compare-metrics card">${[['PTS',A[3],B[3]],['REB',A[4],B[4]],['AST',A[5],B[5]],['TS%',A[6]+'%',B[6]+'%']].map(x=>`<div class="compare-metric"><span>${x[0]}</span><b>${x[1]}</b><i></i><b>${x[2]}</b></div>`).join('')}</div>`};
+  a.onchange=b.onchange=draw;draw();nav('compare');
+}
+async function initInsights(){
+  const d=await getData(),l=document.querySelector('#giLeaders'),g=document.querySelector('#efficiencyGap'),t=document.querySelector('#insightText');if(!l||!g)return;const ps=d.players||[];
+  const top=ps.slice().sort((a,b)=>b[7]-a[7]).slice(0,6),gap=ps.slice().sort((a,b)=>(b[3]-b[7])-(a[3]-a[7])).slice(0,6);
+  l.innerHTML=top.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${p[7]}</strong></div>`).join('');g.innerHTML=gap.map((p,i)=>`<div class="leader"><span>${String(i+1).padStart(2,'0')}</span><b>${esc(p[0])}</b><strong>${(p[3]-p[7]).toFixed(1)}</strong></div>`).join('');if(t)t.textContent=top[0]?`${top[0][0]} сейчас возглавляет сезонный GI. Здесь мы ищем расхождения между объёмом производства и общей оценкой.`:'Данные пока не загружены.';nav('insights');
+}
+async function startPage(kind){
+  try{
+    if(kind==='home') await initHome();
+    if(kind==='forecast') await initForecast();
+    if(kind==='stats') await initStats();
+    if(kind==='gi') await initGI();
+    if(kind==='goat') await initGoat();
+    if(kind==='news') await initNews();
+    if(kind==='compare') await initCompare();
+    if(kind==='insights') await initInsights();
+    if(kind==='editor') await initEditor();
+  }catch(e){console.error(e);setMsg?.(e.message,'error');}
+}
