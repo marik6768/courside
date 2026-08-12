@@ -18,6 +18,16 @@ function normalizeContent(d){
   const baseData=(typeof DEFAULT_DATA!=='undefined'?DEFAULT_DATA:{});
   const x=merge(clone(baseData),clone(d||{}));
   x.site=x.site||{}; x.forecast=x.forecast||{}; x.forecast.arguments=Array.isArray(x.forecast.arguments)?x.forecast.arguments:[]; x.gi=x.gi||{}; x.players=Array.isArray(x.players)?x.players:[]; x.goat=Array.isArray(x.goat)?x.goat:[]; x.news=Array.isArray(x.news)?x.news:[];
+  // Never let an incomplete/empty cloud payload erase the working built-in content.
+  const defaults=clone(baseData);
+  if(!x.players.length && Array.isArray(defaults.players)) x.players=clone(defaults.players);
+  if(!x.goat.length && Array.isArray(defaults.goat)) x.goat=clone(defaults.goat);
+  if(!x.news.length && Array.isArray(defaults.news)) x.news=clone(defaults.news);
+  if(!x.forecast.mvp) x.forecast.mvp=defaults.forecast?.mvp||'Nikola Jokić';
+  if(!x.forecast.dpoy) x.forecast.dpoy=defaults.forecast?.dpoy||'Victor Wembanyama';
+  if(!x.forecast.roy) x.forecast.roy=defaults.forecast?.roy||'Cam Boozer';
+  if(!x.forecast.mip) x.forecast.mip=defaults.forecast?.mip||'Stephon Castle';
+  if(!x.forecast.champion) x.forecast.champion=defaults.forecast?.champion||'Oklahoma City Thunder';
   x.photos=x.photos||{}; x.gallery=Array.isArray(x.gallery)?x.gallery:[]; x.media=Array.isArray(x.media)?x.media:[];
   x.forecast.reasoning=x.forecast.reasoning||'Мы ставим Nikola Jokić первым, потому что его влияние не зависит от одного показателя: он одновременно создаёт эффективное нападение, контролирует подбор и стабильно превращает владения в качественные броски для себя и партнёров.';
   if(!x.forecast.arguments.length) x.forecast.arguments=['Эффективность и объём производства остаются элитными одновременно.','Создание моментов через пас и игру из поста повышает ценность каждого владения.','Его влияние меньше зависит от попаданий одного конкретного типа и лучше переносится между матчами.'];
@@ -74,9 +84,14 @@ async function getData(){
       const {data,error}=result;
       if(error) throw error;
       if(data?.payload){
-        CLOUD_DATA=normalizeContent(data.payload);
-        localStorage.setItem(LOCAL_FALLBACK_KEY,JSON.stringify(CLOUD_DATA));
-        return CLOUD_DATA;
+        const remote=normalizeContent(data.payload);
+        // A partially initialized Supabase row should not blank the public site.
+        if(remote.gi?.text && remote.players?.length && remote.goat?.length){
+          CLOUD_DATA=remote;
+          localStorage.setItem(LOCAL_FALLBACK_KEY,JSON.stringify(CLOUD_DATA));
+          return CLOUD_DATA;
+        }
+        console.warn('Cloud payload is incomplete; keeping local/default content.');
       }
     }
   }catch(e){ console.warn('Cloud read failed, using local/default content:',e.message); }
@@ -181,7 +196,7 @@ function renderStudio(d){const box=document.querySelector('#pageStudio');if(!box
  const collect=()=>[...box.querySelectorAll('.studio-row')].map(r=>{const i=Number(r.dataset.i),old=blocks[i]||{type:r.dataset.type||'text'};return {...old,visible:r.querySelector('.sv').checked,eyebrow:r.querySelector('.sb-eyebrow').value,title:r.querySelector('.sb-title').value,text:r.querySelector('.sb-text').value,image:r.querySelector('.sb-image').value,buttonText:r.querySelector('.sb-button').value,buttonHref:r.querySelector('.sb-href').value}});
  box.querySelector('#studioSave').onclick=async()=>{try{const n=await getData();n.site.blocks=collect();await saveCloud(n);renderHomeBlocks(n);setMsg('Главная страница сохранена.','ok')}catch(e){setMsg(e.message,'error')}};
  box.querySelector('#studioAddText').onclick=()=>{const n=box.querySelector('.studio-list'),r=document.createElement('article');r.className='studio-row';r.draggable=true;r.dataset.i=blocks.length;r.dataset.type='text';r.innerHTML=`<div class="studio-drag">+</div><div class="studio-fields"><div class="studio-top"><b>Текст</b><label class="switch"><input class="sv" type="checkbox" checked><span></span></label></div><div class="studio-grid"><input class="sb-eyebrow" value="NEW · NOTE"><input class="sb-title" value="Новый блок"><textarea class="sb-text">Напиши здесь свой текст.</textarea><input class="sb-image" value=""><input class="sb-button" value=""><input class="sb-href" value=""></div></div><div class="studio-actions"><button class="mini up">↑</button><button class="mini down">↓</button><button class="danger mini remove">Удалить</button></div>`;n.appendChild(r);r.querySelector('.up').onclick=()=>move(r,-1);r.querySelector('.down').onclick=()=>move(r,1);r.querySelector('.remove').onclick=()=>r.remove()};
- box.querySelector('#studioAddImage').onclick=()=>{const n=box.querySelector('.studio-list'),r=document.createElement('article');r.className='studio-row';r.dataset.i=blocks.length;r.dataset.type='text';r.innerHTML=`<div class="studio-drag">+</div><div class="studio-fields"><div class="studio-top"><b>Фото</b><label class="switch"><input class="sv" type="checkbox" checked><span></span></label></div><div class="studio-grid"><input class="sb-eyebrow" value="NEW · IMAGE"><input class="sb-title" value="Новая фотография"><textarea class="sb-text" placeholder="Подпись"></textarea><input class="sb-image" placeholder="URL фото из Media Library"><input class="sb-button"><input class="sb-href"></div></div><div class="studio-actions"><button class="mini up">↑</button><button class="mini down">↓</button><button class="danger mini remove">Удалить</button></div>`;n.appendChild(r);r.querySelector('.up').onclick=()=>move(r,-1);r.querySelector('.down').onclick=()=>move(r,1);r.querySelector('.remove').onclick=()=>r.remove()};
+ box.querySelector('#studioAddImage').onclick=()=>{const n=box.querySelector('.studio-list'),r=document.createElement('article');r.className='studio-row';r.dataset.i=blocks.length;r.dataset.type='image';r.innerHTML=`<div class="studio-drag">+</div><div class="studio-fields"><div class="studio-top"><b>Фото</b><label class="switch"><input class="sv" type="checkbox" checked><span></span></label></div><div class="studio-grid"><input class="sb-eyebrow" value="NEW · IMAGE"><input class="sb-title" value="Новая фотография"><textarea class="sb-text" placeholder="Подпись"></textarea><input class="sb-image" placeholder="URL фото из Media Library"><input class="sb-button"><input class="sb-href"></div></div><div class="studio-actions"><button class="mini up">↑</button><button class="mini down">↓</button><button class="danger mini remove">Удалить</button></div>`;n.appendChild(r);r.querySelector('.up').onclick=()=>move(r,-1);r.querySelector('.down').onclick=()=>move(r,1);r.querySelector('.remove').onclick=()=>r.remove()};
  box.querySelector('#studioReset').onclick=async()=>{if(!confirm('Вернуть исходную структуру главной?'))return;const n=await getData();n.site.blocks=defaultHomeBlocks();await saveCloud(n);renderStudio(n);renderHomeBlocks(n)}
 }
 
@@ -201,7 +216,8 @@ async function initForecast(){
   const vals={mvp:d.forecast.mvp,dpoy:d.forecast.dpoy,roy:d.forecast.roy,mip:d.forecast.mip,champion:d.forecast.champion,confidence:d.forecast.confidence,forecastText:d.forecast.text,forecastReasoning:d.forecast.reasoning||''};
   for(const [id,val] of Object.entries(vals)){const e=document.querySelector('#'+id);if(e)e.textContent=val;}
   const args=document.querySelector('#forecastArguments');
-  if(args) args.innerHTML=(d.forecast.arguments||[]).filter(Boolean).map((x,i)=>`<div class="forecast-argument"><span class="argument-no">${String(i+1).padStart(2,'0')}</span><p>${esc(x)}</p></div>`).join('');
+  const argumentsList=(d.forecast.arguments||[]).filter(Boolean);
+  if(args) args.innerHTML=(argumentsList.length?argumentsList:['Аргументы пока не добавлены. Открой Админ → Тексты и прогнозы и заполни поля «Аргумент №1–3».']).map((x,i)=>`<div class="forecast-argument"><span class="argument-no">${String(i+1).padStart(2,'0')}</span><p>${esc(x)}</p></div>`).join('');
   nav('forecast');
 }
 async function initStats(){
@@ -229,7 +245,8 @@ async function initGoat(){
   const d=await getData(), pg=d.pages?.goat||{}, el=document.querySelector('#goatBody');
   const ey=document.querySelector('#goatEyebrow'), title=document.querySelector('#goatTitle'), intro=document.querySelector('#goatIntro');
   if(ey)ey.textContent=pg.eyebrow||'05 · ALL-TIME'; if(title)title.textContent=pg.title||'GOAT по GI.'; if(intro)intro.textContent=pg.intro||'';
-  if(el)el.innerHTML=d.goat.map((p,i)=>`<div class="rank-row"><span class="rank">${String(i+1).padStart(2,'0')}</span><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div><strong>${p[2]}</strong></div>`).join('');
+  const goatRows=Array.isArray(d.goat)&&d.goat.length?d.goat:(DEFAULT_DATA?.goat||[]);
+  if(el)el.innerHTML=goatRows.map((p,i)=>`<div class="rank-row"><span class="rank">${String(i+1).padStart(2,'0')}</span><div><b>${esc(p[0])}</b><small>${esc(p[1])}</small></div><strong>${esc(p[2])}</strong></div>`).join('');
   const im=document.querySelector('#goatImage');if(im)im.src=d.photos.goat||'nba-3.jpg'; nav('goat');
 }
 async function initNews(){
@@ -424,7 +441,7 @@ async function startPage(kind){
     console.error(e);
     try{
       CLOUD_DATA=null;
-      localStorage.removeItem(LOCAL_FALLBACK_KEY);
+      // Keep local data intact. A temporary cloud/network error must never erase edits.
       if(kind==='home') await initHome();
       if(kind==='forecast') await initForecast();
       if(kind==='stats') await initStats();

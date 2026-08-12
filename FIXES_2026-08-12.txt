@@ -1,0 +1,22 @@
+COURTSIDE FIX PACK · 2026-08-12
+
+Fixed:
+- Public cards/features no longer become invisible when IntersectionObserver/animation initialization fails.
+- GOAT page always renders the ranking and explanatory text, even with an incomplete cloud payload.
+- GI page keeps the GOAT Index description/methodology visible.
+- Forecast page reliably renders the "Why this pick" reasoning and all three arguments.
+- Admin labels now explicitly say that reasoning/arguments are displayed on the Forecast page.
+- Incomplete Supabase content can no longer blank the public site.
+- Temporary cloud/network errors no longer delete local fallback data.
+- Removed Compare and Insights from the public navigation and removed their pages.
+- Fixed the Admin Studio photo block type.
+- Remaining public section numbering was updated after removing Compare/Insights.
+
+Forecast text location:
+Admin → Тексты и прогнозы
+  → "Почему именно этот прогноз · текст на странице"
+  → "Аргумент №1 · будет виден на сайте"
+  → "Аргумент №2 · будет виден на сайте"
+  → "Аргумент №3 · будет виден на сайте"
+
+Those fields appear on forecast.html inside the "Почему именно этот прогноз" block.
